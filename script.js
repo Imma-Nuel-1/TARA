@@ -1,843 +1,188 @@
-/* ============================================
-   ROMANTIC BIRTHDAY WEBSITE - JAVASCRIPT
-   ============================================ */
+const countdownScreen = document.getElementById("countdown-screen");
+const countdownNumber = document.getElementById("countdown-number");
+const messageScreen = document.getElementById("message-screen");
+const rainLayer = document.getElementById("rain-layer");
+const music = document.getElementById("bg-music");
+const bgCanvas = document.getElementById("bg-letters");
 
-// ============================================
-// CONFIGURATION & STATE
-// ============================================
+const phraseChars = Array.from("HAPPY BIRTHDAY TARA BABE \u{1F495}").filter(
+  (char) => char !== " "
+);
+const matrixChars = Array.from("HAPPYBIRTHDAYTARABABEABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
-const SECRET_CODE = "26022002";
-let isCodeEntered = false;
-let currentSong = 0;
-let isPlaying = false;
-// Prevent creating duplicate intervals for floating hearts
-let heartsIntervalId = null;
-// Track touch start target to avoid swipes from controls
-let touchStartTarget = null;
+let rainIntervalId = null;
+let countdownValue = 5;
 
-// Music playlist data
-const playlist = [
-  {
-    name: "Need Me",
-    artist: "Fireboy DML",
-    duration: 210,
-    url: "./music/Fireboy-DML-Need-Me-.mp3",
-  },
-  {
-    name: "Nana",
-    artist: "Peruzzi",
-    duration: 212,
-    url: "./music/Peruzzi-Nana-Audio-.mp3",
-  },
-  {
-    name: "By You",
-    artist: "Simi ft. Adekunle Gold",
-    duration: 220,
-    url: "./music/Simi_ft_Adekunle_Gold_-_-_By_You.mp3",
-  },
-  {
-    name: "Complete Me",
-    artist: "Simi",
-    duration: 210,
-    url: "./music/Simi-Complete-Me-(JustNaija.com).mp3",
-  },
-  {
-    name: "Special Message",
-    artist: "From Me",
-    duration: 180,
-    url: "./music/special message.mp3",
-  },
-];
-
-// ============================================
-// INITIALIZATION
-// ============================================
-
-document.addEventListener("DOMContentLoaded", () => {
-  initializeAudioPlayer();
-  initializeEventListeners();
-  createFloatingHearts();
-  checkAutoplay();
-});
-
-function initializeEventListeners() {
-  // Secret code verification
-  const codeInput = document.getElementById("code-input");
-  const codeBtn = document.getElementById("code-btn");
-  const errorMessage = document.getElementById("error-message");
-
-  codeBtn.addEventListener("click", verifyCode);
-  codeInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") verifyCode();
-  });
-
-  // Show/hide password as dots
-  codeInput.addEventListener("input", () => {
-    // Just let the input work normally
-  });
-
-  // Navigation buttons
-  const navButtons = document.querySelectorAll(".nav-btn");
-  navButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const sectionId = btn.getAttribute("data-section");
-      switchSection(sectionId);
-    });
-  });
-
-  // Music player controls
-  document
-    .getElementById("play-pause-btn")
-    .addEventListener("click", togglePlayPause);
-  document.getElementById("prev-btn").addEventListener("click", previousSong);
-  document.getElementById("next-btn").addEventListener("click", nextSong);
-  document
-    .getElementById("progress-slider")
-    .addEventListener("input", seekMusic);
-  document
-    .getElementById("volume-slider")
-    .addEventListener("input", changeVolume);
-
-  // Playlist item selection
-  const playlistItems = document.querySelectorAll(".playlist-item");
-  playlistItems.forEach((item, index) => {
-    item.addEventListener("click", () => {
-      currentSong = index;
-      updateSongDisplay();
-    });
-  });
-
-  // Birthday popup close
-  document
-    .querySelector(".popup-close-btn")
-    .addEventListener("click", closeBirthdayPopup);
-
-  // Gallery lightbox
-  initializeGallery();
-}
-
-// ============================================
-// SECRET CODE VERIFICATION
-// ============================================
-
-function verifyCode() {
-  const codeInput = document.getElementById("code-input");
-  const errorMessage = document.getElementById("error-message");
-  const enteredCode = codeInput.value;
-
-  if (enteredCode === SECRET_CODE) {
-    // Correct code
-    errorMessage.textContent = "";
-    document.getElementById("secret-code-screen").classList.remove("active");
-    document.getElementById("main-screen").classList.add("active");
-    isCodeEntered = true;
-
-    // Show birthday popup and confetti
-    showBirthdayPopup();
-    playConfetti();
-    createFloatingHearts();
-
-    // Auto-play music
-    simulateAutoPlay();
-  } else if (enteredCode.length === 8) {
-    // Wrong code with full length
-    errorMessage.textContent =
-      "❌ Oops, that's not our special date ❤️ Try again.";
-    codeInput.value = "";
-    codeInput.focus();
-    animateError(codeInput);
-  }
-}
-
-function animateError(element) {
-  element.style.animation = "none";
-  setTimeout(() => {
-    element.style.animation = "shake 0.5s ease-in-out";
-  }, 10);
-}
-
-// ============================================
-// SECTION SWITCHING
-// ============================================
-
-function switchSection(sectionId) {
-  // Hide all sections
-  document.querySelectorAll(".section").forEach((section) => {
-    section.classList.remove("active");
-  });
-
-  // Remove active from all nav buttons
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.classList.remove("active");
-  });
-
-  // Show selected section
-  document.getElementById(sectionId).classList.add("active");
-
-  // Add active to clicked button
-  document
-    .querySelector(`[data-section="${sectionId}"]`)
-    .classList.add("active");
-
-  // Scroll to top
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-// ============================================
-// FLOATING HEARTS ANIMATION
-// ============================================
-
-function createFloatingHearts() {
-  const container = document.getElementById("hearts-container");
-  if (!container) return;
-  const loveEmojis = [
-    "❤️",
-    "💕",
-    "💖",
-    "💗",
-    "💝",
-    "💓",
-    "💞",
-    "💘",
-    "🌹",
-    "✨",
-    "💐",
-    "🦋",
-    "⭐",
-    "🌟",
-  ];
-
-  function createHeart() {
-    const heart = document.createElement("div");
-    heart.className = "heart";
-    heart.textContent =
-      loveEmojis[Math.floor(Math.random() * loveEmojis.length)];
-
-    const startX = Math.random() * window.innerWidth;
-    const startY = window.innerHeight;
-    const duration = 6 + Math.random() * 6; // 6-12 seconds
-    const delay = Math.random() * 0.5; // Random start delay
-
-    heart.style.left = startX + "px";
-    heart.style.top = startY + "px";
-    heart.style.animationDuration = duration + "s";
-    heart.style.animationDelay = delay + "s";
-    heart.style.fontSize = 1.5 + Math.random() * 1.5 + "rem"; // Random sizes
-
-    container.appendChild(heart);
-
-    setTimeout(() => heart.remove(), (duration + delay) * 1000);
-  }
-
-  // Prevent creating multiple intervals if called repeatedly
-  if (heartsIntervalId) return;
-  heartsIntervalId = setInterval(createHeart, 400); // Create more frequently for fuller effect
-}
-
-// ============================================
-// BIRTHDAY POPUP
-// ============================================
-
-function showBirthdayPopup() {
-  const popup = document.getElementById("birthday-popup");
-  popup.classList.add("show");
-
-  // Auto-close after 5 seconds
-  setTimeout(() => {
-    closeBirthdayPopup();
-  }, 5000);
-}
-
-function closeBirthdayPopup() {
-  document.getElementById("birthday-popup").classList.remove("show");
-}
-
-// ============================================
-// CONFETTI ANIMATION
-// ============================================
-
-function playConfetti() {
-  const canvas = document.getElementById("confetti-canvas");
+// Build a subtle glowing letter matrix background.
+function createLetterField(canvas) {
   const ctx = canvas.getContext("2d");
+  let dpr = window.devicePixelRatio || 1;
+  let cols = 0;
+  let rows = 0;
+  let cellSize = 26;
+  let grid = [];
 
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const particles = [];
-  const particleCount = 100;
-
-  for (let i = 0; i < particleCount; i++) {
-    particles.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height - canvas.height,
-      vx: (Math.random() - 0.5) * 8,
-      vy: Math.random() * 4 + 4,
-      life: 1,
-      decay: Math.random() * 0.015 + 0.015,
-      size: Math.random() * 3 + 2,
-      color: ["#FF69B4", "#FFB6C1", "#FF6B9D", "#F08080", "#FF7F9C"][
-        Math.floor(Math.random() * 5)
-      ],
-    });
+  function randomChar() {
+    return matrixChars[Math.floor(Math.random() * matrixChars.length)];
   }
 
-  function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = `${window.innerWidth}px`;
+    canvas.style.height = `${window.innerHeight}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    particles.forEach((p, index) => {
-      p.y += p.vy;
-      p.x += p.vx;
-      p.vy += 0.1; // gravity
-      p.life -= p.decay;
+    cellSize = window.innerWidth < 780 ? 20 : 26;
+    cols = Math.ceil(window.innerWidth / cellSize) + 1;
+    rows = Math.ceil(window.innerHeight / cellSize) + 1;
 
-      if (p.life > 0) {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
+    grid = Array.from({ length: rows * cols }, () => ({
+      char: randomChar(),
+      alpha: 0.09 + Math.random() * 0.24,
+      hue: 310 + Math.random() * 40,
+      glow: Math.random() < 0.06,
+    }));
+  }
+
+  function draw(timestamp) {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    const now = timestamp * 0.001;
+    ctx.font = `${Math.floor(cellSize * 0.78)}px "Courier New", monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const idx = row * cols + col;
+        const cell = grid[idx];
+
+        if (Math.random() < 0.017) {
+          cell.char = randomChar();
+        }
+
+        if (Math.random() < 0.009) {
+          cell.glow = !cell.glow;
+        }
+
+        const x = col * cellSize + cellSize / 2;
+        const waveY = Math.sin(now * 0.8 + col * 0.38) * 2.2;
+        const y = row * cellSize + cellSize / 2 + waveY;
+        const alpha = cell.glow ? Math.min(0.68, cell.alpha + 0.34) : cell.alpha;
+        const sat = cell.glow ? 97 : 82;
+        const light = cell.glow ? 72 : 58;
+
+        ctx.fillStyle = `hsla(${cell.hue}, ${sat}%, ${light}%, ${alpha})`;
+        ctx.fillText(cell.char, x, y);
       }
-    });
-
-    if (particles.some((p) => p.life > 0)) {
-      requestAnimationFrame(animate);
-    } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.style.display = "none";
     }
+
+    requestAnimationFrame(draw);
   }
 
-  animate();
+  resize();
+  requestAnimationFrame(draw);
+  window.addEventListener("resize", resize);
 }
 
-// Handle window resize for confetti
-window.addEventListener("resize", () => {
-  const canvas = document.getElementById("confetti-canvas");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
+function updateCountdownNumber(value) {
+  countdownNumber.textContent = value;
 
-// ============================================
-// MUSIC PLAYER
-// ============================================
-
-function updateSongDisplay() {
-  const song = playlist[currentSong];
-  document.getElementById("song-name").textContent = song.name;
-  document.getElementById("song-artist").textContent = song.artist;
-
-  // Update playlist highlight
-  document.querySelectorAll(".playlist-item").forEach((item, index) => {
-    if (index === currentSong) {
-      item.style.background = "rgba(255, 107, 157, 0.3)";
-    } else {
-      item.style.background = "rgba(255, 240, 245, 0.8)";
-    }
-  });
-
-  // Reset progress
-  document.getElementById("progress-slider").value = 0;
-  document.getElementById("progress-slider").max = song.duration;
-  document.getElementById("current-time").textContent = "0:00";
-  updateDurationDisplay(song.duration);
+  // Restart pulse animation for each number.
+  countdownNumber.classList.remove("pulse");
+  void countdownNumber.offsetWidth;
+  countdownNumber.classList.add("pulse");
 }
 
-function updateDurationDisplay(duration) {
-  const minutes = Math.floor(duration / 60);
-  const seconds = duration % 60;
-  document.getElementById("duration-time").textContent =
-    `${minutes}:${seconds.toString().padStart(2, "0")}`;
+function revealBirthdayMessage() {
+  countdownScreen.classList.add("hidden");
+
+  setTimeout(() => {
+    countdownScreen.classList.remove("visible");
+    messageScreen.classList.add("visible");
+  }, 760);
 }
 
-function togglePlayPause() {
-  const btn = document.getElementById("play-pause-btn");
-  isPlaying = !isPlaying;
+function startCountdown() {
+  countdownScreen.classList.add("visible");
+  updateCountdownNumber(countdownValue);
 
-  if (isPlaying) {
-    btn.innerHTML = '<i class="fas fa-pause"></i>';
-    startMusicSimulation();
-  } else {
-    btn.innerHTML = '<i class="fas fa-play"></i>';
-    stopMusicSimulation();
-  }
-}
+  const timer = setInterval(() => {
+    countdownValue -= 1;
 
-let musicSimulationInterval;
-let audioPlayer = null;
-
-function initializeAudioPlayer() {
-  audioPlayer = document.getElementById("audio-player");
-  if (audioPlayer) {
-    audioPlayer.addEventListener("timeupdate", updateProgressFromAudio);
-    audioPlayer.addEventListener("loadedmetadata", updateDurationFromAudio);
-    audioPlayer.addEventListener("ended", nextSong);
-  }
-}
-
-function updateProgressFromAudio() {
-  if (audioPlayer && audioPlayer.duration) {
-    const currentTime = Math.floor(audioPlayer.currentTime);
-    document.getElementById("progress-slider").value = currentTime;
-    document.getElementById("current-time").textContent =
-      formatTime(currentTime);
-    updateProgressBar();
-  }
-}
-
-function updateDurationFromAudio() {
-  if (audioPlayer && audioPlayer.duration) {
-    const duration = Math.floor(audioPlayer.duration);
-    document.getElementById("progress-slider").max = duration;
-    document.getElementById("duration-time").textContent = formatTime(duration);
-  }
-}
-
-function startMusicSimulation() {
-  const song = playlist[currentSong];
-
-  if (audioPlayer && song.url) {
-    audioPlayer.src = song.url;
-    audioPlayer.play().catch((err) => {
-      console.log("Audio play error:", err);
-      // Fallback to simulation if audio can't play
-      fallbackMusicSimulation();
-    });
-  } else {
-    // Fallback to simulation
-    fallbackMusicSimulation();
-  }
-}
-
-function fallbackMusicSimulation() {
-  const song = playlist[currentSong];
-  let currentTime =
-    parseInt(document.getElementById("progress-slider").value) || 0;
-
-  musicSimulationInterval = setInterval(() => {
-    if (currentTime >= song.duration) {
-      nextSong();
+    if (countdownValue > 0) {
+      updateCountdownNumber(countdownValue);
       return;
     }
 
-    currentTime += 1;
-    document.getElementById("progress-slider").value = currentTime;
-    document.getElementById("current-time").textContent =
-      formatTime(currentTime);
-    updateProgressBar();
+    clearInterval(timer);
+    revealBirthdayMessage();
+    startTextRain();
   }, 1000);
 }
 
-function stopMusicSimulation() {
-  clearInterval(musicSimulationInterval);
-  if (audioPlayer) {
-    audioPlayer.pause();
+function spawnRainLetter() {
+  const letter = document.createElement("span");
+  const char = phraseChars[Math.floor(Math.random() * phraseChars.length)];
+  const hue = Math.floor(Math.random() * 360);
+  const duration = (4.2 + Math.random() * 4.2).toFixed(2);
+  const drift = (-48 + Math.random() * 96).toFixed(1);
+
+  letter.className = "rain-letter";
+  letter.textContent = char;
+  letter.style.left = `${Math.random() * 100}vw`;
+  letter.style.setProperty("--duration", `${duration}s`);
+  letter.style.setProperty("--drift", `${drift}px`);
+  letter.style.fontSize = `${1 + Math.random() * 1.4}rem`;
+  letter.style.color = `hsl(${hue} 95% 72%)`;
+
+  letter.addEventListener("animationend", () => {
+    letter.remove();
+  });
+
+  rainLayer.appendChild(letter);
+
+  if (rainLayer.childElementCount > 180) {
+    rainLayer.firstElementChild?.remove();
   }
 }
 
-function nextSong() {
-  currentSong = (currentSong + 1) % playlist.length;
-  isPlaying = false;
-  document.getElementById("play-pause-btn").innerHTML =
-    '<i class="fas fa-play"></i>';
-  stopMusicSimulation();
-  updateSongDisplay();
-  if (isPlaying) togglePlayPause();
-}
-
-function previousSong() {
-  currentSong = (currentSong - 1 + playlist.length) % playlist.length;
-  isPlaying = false;
-  document.getElementById("play-pause-btn").innerHTML =
-    '<i class="fas fa-play"></i>';
-  stopMusicSimulation();
-  updateSongDisplay();
-  if (isPlaying) togglePlayPause();
-}
-
-function seekMusic(e) {
-  const value = e.target.value;
-  document.getElementById("current-time").textContent = formatTime(value);
-  updateProgressBar();
-  if (audioPlayer) {
-    audioPlayer.currentTime = value;
+function startTextRain() {
+  if (rainIntervalId) {
+    return;
   }
-}
 
-function updateProgressBar() {
-  const slider = document.getElementById("progress-slider");
-  const fill = document.querySelector(".progress-fill");
-  const value = (slider.value / slider.max) * 100;
-  fill.style.width = value + "%";
-}
-
-function formatTime(seconds) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
-}
-
-function changeVolume(e) {
-  const volume = e.target.value / 100; // Convert to 0-1 range
-  if (audioPlayer) {
-    audioPlayer.volume = volume;
+  for (let i = 0; i < 24; i += 1) {
+    setTimeout(spawnRainLetter, i * 70);
   }
+
+  rainIntervalId = setInterval(spawnRainLetter, 180);
 }
 
-function simulateAutoPlay() {
-  // Auto-play first song
-  updateSongDisplay();
-  // Don't auto-play, let user click play
-}
+function initMusic() {
+  if (!music) {
+    return;
+  }
 
-function checkAutoplay() {
-  if (!isCodeEntered) return;
-  // Check if we need to trigger autoplay
-}
+  music.volume = 0.14;
 
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-// Add smooth scrolling for internal links
-document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
-  anchor.addEventListener("click", function (e) {
-    e.preventDefault();
-    const target = document.querySelector(this.getAttribute("href"));
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth" });
+  const tryPlay = () => {
+    const playResult = music.play();
+    if (playResult && typeof playResult.catch === "function") {
+      playResult.catch(() => {
+        // Ignore autoplay block; first user interaction will retry.
+      });
     }
-  });
-});
-
-// Handle page visibility for music player
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden && isPlaying) {
-    stopMusicSimulation();
-  }
-});
-
-// ============================================
-// INTERACTIVE EFFECTS
-// ============================================
-
-// Add click effect on sticky notes
-document.querySelectorAll(".sticky-note").forEach((note) => {
-  note.addEventListener("click", function () {
-    this.style.transform = "scale(1.05) rotate(0deg)";
-    setTimeout(() => {
-      this.style.transform = "scale(1) rotate(0deg)";
-    }, 300);
-  });
-});
-
-// Add hover scale effect to gallery items
-document.querySelectorAll(".gallery-item").forEach((item) => {
-  item.addEventListener("mouseenter", function () {
-    // CSS handles this with hover
-  });
-});
-
-// ============================================
-// PERFORMANCE OPTIMIZATIONS
-// ============================================
-
-// Debounce function for resize events
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
   };
+
+  tryPlay();
+  window.addEventListener("pointerdown", tryPlay, { once: true });
 }
 
-// ============================================
-// ACCESSIBILITY FEATURES
-// ============================================
-
-// Keyboard navigation
-document.addEventListener("keydown", (e) => {
-  // Don't interfere while typing or when editable elements are focused
-  const activeEl = document.activeElement;
-  if (
-    activeEl &&
-    (activeEl.tagName === "INPUT" ||
-      activeEl.tagName === "TEXTAREA" ||
-      activeEl.isContentEditable)
-  ) {
-    return;
-  }
-
-  if (e.key === "Escape") {
-    closeBirthdayPopup();
-    return;
-  }
-
-  // Arrow key navigation for nav buttons — only when main screen visible and no modal open
-  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-    const mainScreen = document.getElementById("main-screen");
-    const popup = document.getElementById("birthday-popup");
-    const lightbox = document.getElementById("lightbox-modal");
-    if (
-      !mainScreen ||
-      !mainScreen.classList.contains("active") ||
-      (popup && popup.classList.contains("show")) ||
-      (lightbox && lightbox.classList.contains("show"))
-    ) {
-      return;
-    }
-
-    const activeBtn = document.querySelector(".nav-btn.active");
-    if (activeBtn) {
-      const allBtns = Array.from(document.querySelectorAll(".nav-btn"));
-      const currentIndex = allBtns.indexOf(activeBtn);
-      let nextIndex;
-
-      if (e.key === "ArrowRight") {
-        nextIndex = (currentIndex + 1) % allBtns.length;
-      } else {
-        nextIndex = (currentIndex - 1 + allBtns.length) % allBtns.length;
-      }
-
-      allBtns[nextIndex].click();
-    }
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  createLetterField(bgCanvas);
+  initMusic();
+  startCountdown();
 });
-
-// ============================================
-// GALLERY & LIGHTBOX FUNCTIONALITY
-// ============================================
-
-let currentLightboxIndex = 0;
-let visibleCount = 6;
-
-function initializeGallery() {
-  // Gallery item click to open lightbox
-  const galleryItems = document.querySelectorAll(".gallery-item");
-  galleryItems.forEach((item, index) => {
-    item.addEventListener("click", () => {
-      openLightbox(index);
-    });
-  });
-
-  // Lightbox controls
-  const lightboxModal = document.getElementById("lightbox-modal");
-  const closeBtn = document.querySelector(".lightbox-close");
-  const prevBtn = document.querySelector(".lightbox-prev");
-  const nextBtn = document.querySelector(".lightbox-next");
-
-  closeBtn.addEventListener("click", closeLightbox);
-  prevBtn.addEventListener("click", previousImage);
-  nextBtn.addEventListener("click", nextImage);
-
-  // Close lightbox when clicking outside the image
-  lightboxModal.addEventListener("click", (e) => {
-    if (e.target === lightboxModal) {
-      closeLightbox();
-    }
-  });
-
-  // Load more button
-  const loadMoreBtn = document.getElementById("load-more-btn");
-  if (loadMoreBtn) {
-    loadMoreBtn.addEventListener("click", loadMorePhotos);
-  }
-
-  // Keyboard navigation
-  document.addEventListener("keydown", (e) => {
-    if (lightboxModal.classList.contains("show")) {
-      if (e.key === "ArrowLeft") previousImage();
-      if (e.key === "ArrowRight") nextImage();
-      if (e.key === "Escape") closeLightbox();
-    }
-  });
-}
-
-function openLightbox(index) {
-  currentLightboxIndex = index;
-  const visibleItems = Array.from(
-    document.querySelectorAll(
-      ".gallery-item:not(.hidden-item), .gallery-item.show",
-    ),
-  );
-  const clickedItem = visibleItems[index];
-
-  if (clickedItem) {
-    const img = clickedItem.querySelector("img");
-    const caption = clickedItem.querySelector(".gallery-overlay p");
-
-    const lightboxImage = document.getElementById("lightbox-image");
-    const lightboxCaption = document.getElementById("lightbox-caption");
-    const lightboxModal = document.getElementById("lightbox-modal");
-
-    lightboxImage.src = img.src;
-    lightboxImage.alt = img.alt;
-    lightboxCaption.textContent = caption.textContent;
-
-    lightboxModal.classList.add("show");
-    document.body.style.overflow = "hidden";
-  }
-}
-
-function closeLightbox() {
-  const lightboxModal = document.getElementById("lightbox-modal");
-  lightboxModal.classList.remove("show");
-  document.body.style.overflow = "auto";
-}
-
-function nextImage() {
-  const visibleItems = Array.from(
-    document.querySelectorAll(
-      ".gallery-item:not(.hidden-item), .gallery-item.show",
-    ),
-  );
-  currentLightboxIndex = (currentLightboxIndex + 1) % visibleItems.length;
-  openLightbox(currentLightboxIndex);
-}
-
-function previousImage() {
-  const visibleItems = Array.from(
-    document.querySelectorAll(
-      ".gallery-item:not(.hidden-item), .gallery-item.show",
-    ),
-  );
-  currentLightboxIndex =
-    (currentLightboxIndex - 1 + visibleItems.length) % visibleItems.length;
-  openLightbox(currentLightboxIndex);
-}
-
-function loadMorePhotos() {
-  const hiddenItems = document.querySelectorAll(".gallery-item.hidden-item");
-  const itemsToShow = 6;
-  let count = 0;
-
-  hiddenItems.forEach((item) => {
-    if (count < itemsToShow && item.classList.contains("hidden-item")) {
-      item.classList.add("show");
-      item.classList.remove("hidden-item");
-      count++;
-    }
-  });
-
-  // Hide load more button if all items are shown
-  const remainingHidden = document.querySelectorAll(
-    ".gallery-item.hidden-item",
-  );
-  const loadMoreBtn = document.getElementById("load-more-btn");
-  if (remainingHidden.length === 0 && loadMoreBtn) {
-    loadMoreBtn.classList.add("hidden");
-  }
-
-  // Re-initialize gallery items
-  const galleryItems = document.querySelectorAll(".gallery-item");
-  galleryItems.forEach((item, index) => {
-    item.removeEventListener("click", null);
-    item.addEventListener("click", () => {
-      const allVisibleItems = document.querySelectorAll(
-        ".gallery-item:not(.hidden-item)",
-      );
-      const clickedIndex = Array.from(allVisibleItems).indexOf(item);
-      openLightbox(clickedIndex);
-    });
-  });
-}
-
-// Console Easter Egg
-console.log(
-  "%cHappy Birthday My Love! ❤️",
-  "font-size: 24px; color: #FF69B4; font-weight: bold;",
-);
-console.log(
-  "%cThis website was made with love just for you 💕",
-  "font-size: 16px; color: #FF7F9C;",
-);
-console.log(
-  "%cSecret Code: 26022002 (Your special date)",
-  "font-size: 12px; color: #FFB6C1;",
-);
-
-// ============================================
-// ENHANCED FEATURES
-// ============================================
-
-// Preload images for better performance
-function preloadImages() {
-  const images = ["./images"];
-
-  images.forEach((url) => {
-    const img = new Image();
-    img.src = url;
-  });
-}
-
-preloadImages();
-
-// ============================================
-// MOBILE OPTIMIZATIONS
-// ============================================
-
-// Touch event handling
-let touchStartX = 0;
-let touchEndX = 0;
-
-document.addEventListener(
-  "touchstart",
-  (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-    // store the original target to avoid swipes originating from controls
-    touchStartTarget = e.target;
-  },
-  false,
-);
-
-document.addEventListener(
-  "touchend",
-  (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-    // reset start target after handling
-    touchStartTarget = null;
-  },
-  false,
-);
-
-function handleSwipe() {
-  const swipeThreshold = 50;
-  const diff = touchStartX - touchEndX;
-
-  // Ignore swipes that started from inputs or player controls
-  try {
-    if (
-      touchStartTarget &&
-      (touchStartTarget.tagName === "INPUT" ||
-        touchStartTarget.tagName === "TEXTAREA" ||
-        (touchStartTarget.closest &&
-          (touchStartTarget.closest(".music-player") ||
-            touchStartTarget.closest(".playlist") ||
-            touchStartTarget.closest(".progress-bar") ||
-            touchStartTarget.closest(".volume-control"))))
-    ) {
-      return;
-    }
-  } catch (err) {
-    // ignore errors from DOM queries, proceed with swipe handling
-  }
-
-  if (Math.abs(diff) > swipeThreshold) {
-    const navBtns = Array.from(document.querySelectorAll(".nav-btn"));
-    const activeBtn = document.querySelector(".nav-btn.active");
-    const currentIndex = navBtns.indexOf(activeBtn);
-
-    let nextIndex;
-    if (diff > 0) {
-      // Swiped left
-      nextIndex = (currentIndex + 1) % navBtns.length;
-    } else {
-      // Swiped right
-      nextIndex = (currentIndex - 1 + navBtns.length) % navBtns.length;
-    }
-
-    if (navBtns[nextIndex]) navBtns[nextIndex].click();
-  }
-}

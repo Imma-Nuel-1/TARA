@@ -1,0 +1,55 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --font-sans: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-serif: "Cormorant Garamond", "Times New Roman", serif;
+  --font-accent: "Great Vibes", cursive;
+
+  --text-h1: clamp(2rem, 4vw, 3.5rem);
+  --text-h2: clamp(1.5rem, 3vw, 2.5rem);
+  --text-h3: clamp(1.3rem, 2.5vw, 1.9rem);
+  --text-body: 1rem;
+  --text-caption: 0.85rem;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.type-h1 {
+  font-size: var(--text-h1);
+}
+
+.type-h2 {
+  font-size: var(--text-h2);
+}
+
+.type-h3 {
+  font-size: var(--text-h3);
+}
+
+.type-body {
+  font-size: var(--text-body);
+}
+
+.type-caption {
+  font-size: var(--text-caption);
+}
+
+.type-serif {
+  font-family: var(--font-serif);
+}
+
+.type-accent {
+  font-family: var(--font-accent);
+}

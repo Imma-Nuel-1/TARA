@@ -1,0 +1,18 @@
+.ui-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ui-btn-primary {
+  background: #ff69b4;
+  color: #fff;
+}
+
+.ui-btn-ghost {
+  background: #fff;
+  color: #ff69b4;
+  border: 1px solid #ff69b4;
+}
