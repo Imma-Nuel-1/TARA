@@ -11,7 +11,11 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
   adminUsername: process.env.ADMIN_USERNAME || "adesa",
   adminPassword: process.env.ADMIN_PASSWORD || "Adesa@26022002",
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173",
+  corsOrigin:
+    process.env.CORS_ORIGIN ||
+    (process.env.NODE_ENV === "production"
+      ? ["https://tara-s203.onrender.com", /\.onrender\.com$/]
+      : "https://tara-s203.onrender.com"),
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
