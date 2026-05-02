@@ -1,135 +1,54 @@
 import { SiteContent } from "../models/SiteContent.js";
+import { ContentItem } from "../models/ContentItem.js";
 import { contentSchema } from "../validation/contentSchema.js";
 
 const LEGACY_BASE = "http://localhost:5000/legacy";
 
+const CODED_LOVE_LETTER = {
+  heading: "Hi my love 💕",
+  paragraphs: [
+    "It's your day today, and I just want to talk to you properly, not in any rushed or half way way.",
+    "First of all, happy birthday Halimah 💕 22 looks good on you already, and I hope you actually pause today and take in what this year means for you, Ajoke. I know I'm older, so I'll do a little bit of \"older person talk\" 😌",
+    "22 is a beautiful age, but it is also a serious one. It is that stage where life starts to feel a bit more intentional. Things begin to matter more, decisions start shaping your direction, and you start seeing yourself more clearly. But honestly, I don't worry about you, Tara. You've always had something about you... focus, depth, and that quiet strength you carry even when you don't say much.",
+    "And I trust you. I trust God over your life as well, Halimah. So I already know this year will not just be good for you, it will be meaningful for you.",
+    "I'm genuinely glad I get to do life with you. Not in a perfect, romanticised way, but in a real way, Ajoke. The kind where we talk, we laugh, we disagree sometimes, we understand each other better over time, and we still choose each other in all of it.",
+    "Today is not just another date. It is the day someone I deeply care about came into the world. And over time, that \"someone\" became my person... Halimah....",
+    "You've changed my life in ways I don't always know how to explain properly. It's not loud or dramatic. It's in the small things... the way I think differently now, the way I care more, the way I plan more seriously about the future. You've influenced my life more than you probably realise.",
+    "And I'll be honest with you, sometimes I just look at you and think... you're actually quite amazing, not in a perfect way, but in a real, human way that makes you even more special.",
+    "I like how you love, Ajoke. You don't do things halfway. When you care, you care fully. When you're present, you're present properly. There's no pretending with you, and I respect that a lot.",
+    "I also like how you push yourself, even when it's not easy. Even when you're tired or unsure, you still try, Tara. You don't always see how much I notice these things, but I do.",
+    "And yes, I'll still tease you sometimes and act like I'm not impressed... but you already know the truth 😌",
+    "Thank you for being patient with me, even when I'm not the easiest person to deal with.",
+    "Thank you for understanding me even when I don't explain myself well, Halimah.",
+    "Thank you for staying, even in moments where things could have gone differently, Ajoke.",
+    "You don't just stand beside me, you grow with me, Tara. And I don't take that lightly.",
+    "I want you to know something clearly today: you deserve a peaceful life. You deserve softness. You deserve to be celebrated properly, not just today, but in the way you are treated every day. You deserve consistency, care, and someone who shows up for you fully.",
+    "And I will always try my best to be that person for you.",
+    "I look forward to everything ahead of us, Halimah. Not just the big moments, but even the simple ones... the random conversations, the laughter, the quiet days, and everything in between. Those are the things that actually build something real.",
+    "So as you celebrate today, I just hope you feel loved properly. Not just by me, but in general, by life, by people around you, by everything good coming your way, Ajoke.",
+    "AJOKE MI💕",
+    "I pray that this new year of your life brings you clarity, peace, and direction. I pray God surrounds you with genuine love, opens doors that align with your purpose, and strengthens you in every area where you feel unsure. I pray you don't struggle alone in silence, and that joy finds you easily this year. May your heart be settled, your mind be at peace, and your path be guided. And above all, may you continue to grow into everything God created you to be, with grace and confidence.",
+    "You mean a lot to me, Halimah. More than I always say out loud.",
+    "Happy birthday my love.",
+    "To you, to your growth, and to everything ahead of you, Ajoke.",
+    "Here's to you today.",
+    "Here's to us.",
+    "And here's to everything still coming. 💫",
+    "I love you. Always.",
+  ],
+};
+
 const defaultDocument = {
   singleton: "main",
   secretCode: "26022002",
-  title: "Happy Birthday Temini",
+  title: "Happy Birthday Halimah",
   loveLetter: {
-    heading: "My Dearest Temini",
-    paragraphs: [
-      "Hi my MI MI 💕",
-      "As per I’m older than you, let me give you tips. 24 is lovely and at the same time tasking. 24 is not for the weak but for the strong like you.",
-      "I trust God and I trust you to have a lovely 24 years of age. Happy birthday MI MI I LOVE YOU.",
-      "Today is not just another date on the calendar. It’s the day the world was blessed with you.",
-      "I admire the way you love. You love intentionally. You love deeply. You love without keeping score.",
-      "Thank you for being patient with me and believing in me even when I doubted myself.",
-      "You deserve soft love, peace, celebration, and joy. Here’s to forever. Happy Birthday, my love.",
-    ],
+    heading: CODED_LOVE_LETTER.heading,
+    paragraphs: CODED_LOVE_LETTER.paragraphs,
   },
-  playlist: [
-    {
-      name: "Need Me",
-      artist: "Fireboy DML",
-      duration: 210,
-      url: `${LEGACY_BASE}/music/Fireboy-DML-Need-Me-.mp3`,
-    },
-    {
-      name: "Nana",
-      artist: "Peruzzi",
-      duration: 212,
-      url: `${LEGACY_BASE}/music/Peruzzi-Nana-Audio-.mp3`,
-    },
-    {
-      name: "By You",
-      artist: "Simi ft. Adekunle Gold",
-      duration: 220,
-      url: `${LEGACY_BASE}/music/Simi_ft_Adekunle_Gold_-_-_By_You.mp3`,
-    },
-    {
-      name: "Complete Me",
-      artist: "Simi",
-      duration: 210,
-      url: `${LEGACY_BASE}/music/Simi-Complete-Me-(JustNaija.com).mp3`,
-    },
-    {
-      name: "Special Message",
-      artist: "From Me",
-      duration: 180,
-      url: `${LEGACY_BASE}/music/special message.mp3`,
-    },
-  ],
-  notes: [
-    {
-      name: "Christian",
-      role: "Friend",
-      avatarUrl: `${LEGACY_BASE}/images/man1.jpg`,
-      message:
-        "Happy Birthday, Imisioluwa! I’m truly grateful to have you as a friend. May this new year bring you happiness, progress, health, and success.",
-    },
-    {
-      name: "Precious (smallie)",
-      role: "Close Friend",
-      avatarUrl: `${LEGACY_BASE}/images/girl.jpg`,
-      message:
-        "From 100 level till now, you’ve been amazing. I hope this birthday reminds you how special and loved you are.",
-    },
-    {
-      name: "Feyinti",
-      role: "Brother",
-      avatarUrl: `${LEGACY_BASE}/images/fiy.jpg`,
-      message:
-        "Wishing you abundance, clarity, growth, and continued success. You deserve nothing but the best.",
-    },
-    {
-      name: "ABIMBOLA",
-      role: "Close friend",
-      avatarUrl: `${LEGACY_BASE}/images/bimbo.jpg`,
-      message:
-        "Happy Birthday imisioluwa, may your days be filled with love and favor.",
-    },
-    {
-      name: "Dare",
-      role: "Brother",
-      avatarUrl: `${LEGACY_BASE}/images/dare.jpg`,
-      message:
-        "Happy birthday to my sweet girl, my go-to person and safe space.",
-    },
-    {
-      name: "Sis Lizzy",
-      role: "Sister",
-      avatarUrl: `${LEGACY_BASE}/images/sislizzy.jpg`,
-      message:
-        "Happy birthday to a kind and beautiful soul. May life reward your kindness with happiness and peace.",
-    },
-    {
-      name: "Mary",
-      role: "Close friend",
-      avatarUrl: `${LEGACY_BASE}/images/marry.jpg`,
-      message:
-        "Happy birthday to my sweet girl, thank you for being my best girl and safe space.",
-    },
-    {
-      name: "Busayo o",
-      role: "Friend",
-      avatarUrl: `${LEGACY_BASE}/images/busayo.jpg`,
-      message:
-        "Happy Birthday to my chocomillo, a sister by heart. Wishing you joy, peace, and everything beautiful.",
-    },
-    {
-      name: "Temilorun",
-      role: "Sister",
-      avatarUrl: `${LEGACY_BASE}/images/temilorun.jpg`,
-      message:
-        "Wishing you a day filled with joy, laughter, and love. Enjoy your special day and have an amazing year ahead.",
-    },
-  ],
-  gallery: [
-    { imageUrl: `${LEGACY_BASE}/images/img2.jpg`, caption: "Our Love" },
-    { imageUrl: `${LEGACY_BASE}/images/img8.jpg`, caption: "Beautiful Bloom" },
-    { imageUrl: `${LEGACY_BASE}/images/img555.jpg`, caption: "Sweet Moments" },
-    { imageUrl: `${LEGACY_BASE}/images/img9.jpg`, caption: "Sunset Love" },
-    { imageUrl: `${LEGACY_BASE}/images/img1.jpg`, caption: "Heart of Mine" },
-    { imageUrl: `${LEGACY_BASE}/images/img333.jpg`, caption: "Blooming Love" },
-    { imageUrl: `${LEGACY_BASE}/images/img3.jpg`, caption: "Together Forever" },
-    { imageUrl: `${LEGACY_BASE}/images/img4.jpg`, caption: "Your Beauty" },
-    { imageUrl: `${LEGACY_BASE}/images/img5.jpg`, caption: "Pure Love" },
-    { imageUrl: `${LEGACY_BASE}/images/img6.jpg`, caption: "Happiness" },
-    { imageUrl: `${LEGACY_BASE}/images/img7.jpg`, caption: "Cherished Times" },
-    { imageUrl: `${LEGACY_BASE}/images/img11.jpg`, caption: "Forever Mine" },
-  ],
+  playlist: [],
+  notes: [],
+  gallery: [],
 };
 
 export async function ensureDefaultContent() {
@@ -139,34 +58,11 @@ export async function ensureDefaultContent() {
     return;
   }
 
-  const shouldBackfill =
-    (existing.loveLetter?.paragraphs?.length || 0) <
-      defaultDocument.loveLetter.paragraphs.length ||
-    !existing.playlist?.length ||
-    !existing.notes?.length ||
-    !existing.gallery?.length;
-
-  if (shouldBackfill) {
+  if (!existing.playlist?.length) {
     await SiteContent.findOneAndUpdate(
       { singleton: "main" },
       {
-        secretCode: existing.secretCode || defaultDocument.secretCode,
-        title: existing.title || defaultDocument.title,
-        loveLetter:
-          (existing.loveLetter?.paragraphs?.length || 0) >=
-          defaultDocument.loveLetter.paragraphs.length
-            ? existing.loveLetter
-            : defaultDocument.loveLetter,
-        playlist:
-          existing.playlist?.length > 0
-            ? existing.playlist
-            : defaultDocument.playlist,
-        notes:
-          existing.notes?.length > 0 ? existing.notes : defaultDocument.notes,
-        gallery:
-          existing.gallery?.length > 0
-            ? existing.gallery
-            : defaultDocument.gallery,
+        playlist: defaultDocument.playlist,
       },
       { new: true },
     );
@@ -179,9 +75,47 @@ export async function getPublicContent(req, res) {
     return res.status(404).json({ message: "Content not found" });
   }
 
+  const publishedItems = await ContentItem.find({ status: "published" })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const contributedNotes = publishedItems
+    .filter((item) => item.type === "message")
+    .map((item) => ({
+      name: item.createdBy || "Guest",
+      role: item.data?.role || "Guest",
+      avatarUrl:
+        item.data?.avatarUrl ||
+        `https://ui-avatars.com/api/?background=ffd6e8&color=a33665&name=${encodeURIComponent(
+          item.createdBy || "Guest",
+        )}`,
+      message:
+        typeof item.data === "string"
+          ? item.data
+          : item.data?.message || item.title || "",
+    }));
+
+  const contributedGallery = publishedItems
+    .filter((item) => item.type === "image")
+    .map((item) => {
+      const data = item.data || {};
+      return {
+        imageUrl: data.url || "",
+        caption: data.caption || item.title || "Shared memory",
+        mediaType: data.mediaType || "image",
+      };
+    })
+    .filter((item) => Boolean(item.imageUrl));
+
   const { _id, singleton, __v, createdAt, updatedAt, ...publicContent } =
     content;
-  return res.json(publicContent);
+
+  return res.json({
+    ...publicContent,
+    loveLetter: CODED_LOVE_LETTER,
+    notes: contributedNotes,
+    gallery: contributedGallery,
+  });
 }
 
 export async function getAdminContent(req, res) {

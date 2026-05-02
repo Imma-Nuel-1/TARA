@@ -10,6 +10,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
 import mediaRoutes from "./routes/mediaRoutes.js";
+import publicMediaRoutes from "./routes/publicMediaRoutes.js";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,10 +23,14 @@ app.use(
     credentials: false,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(morgan("dev"));
 app.use("/legacy/images", express.static(path.join(workspaceRoot, "images")));
 app.use("/legacy/music", express.static(path.join(workspaceRoot, "music")));
+app.use(
+  "/legacy/music",
+  express.static(path.join(workspaceRoot, "client", "public", "music")),
+);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -36,6 +41,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/admin/media", mediaRoutes);
+app.use("/api/media", publicMediaRoutes);
 
 app.use((err, req, res, next) => {
   // Keep response generic in production and log details server-side.

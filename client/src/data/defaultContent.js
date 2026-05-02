@@ -1,36 +1,11 @@
 export const defaultContent = {
   secretCode: "26022002",
-  title: "Happy Birthday Temini",
+  title: "Happy Birthday Halimah",
   loveLetter: {
-    heading: "My Dearest Temini",
-    paragraphs: [
-      "Hi my MI MI.",
-      "As per I'm older than you, let me give you tips. 24 is lovely and at the same time tasking. 24 is for the strong like you.",
-      "I trust God and I trust you to have a lovely 24 years of age. Happy birthday MI MI. I love you.",
-      "Today is not just another date on the calendar. It's the day the world was blessed with you.",
-      "You deserve soft love, peace, celebration, and joy. Here's to forever.",
-    ],
+    heading: "",
+    paragraphs: [],
   },
-  playlist: [
-    {
-      name: "Need Me",
-      artist: "Fireboy DML",
-      duration: 210,
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    },
-    {
-      name: "Nana",
-      artist: "Peruzzi",
-      duration: 212,
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-    },
-    {
-      name: "By You",
-      artist: "Simi ft. Adekunle Gold",
-      duration: 220,
-      url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    },
-  ],
+  playlist: [],
   notes: [
     {
       name: "Christian",

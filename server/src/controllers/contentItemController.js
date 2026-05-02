@@ -30,7 +30,7 @@ export async function createContent(req, res) {
 
   const item = await ContentItem.create({
     ...payload,
-    status: isAdmin ? payload.status || "draft" : "pending",
+    status: isAdmin ? payload.status || "published" : "published",
     createdByRole: isAdmin ? "admin" : payload.createdByRole || "user",
   });
 

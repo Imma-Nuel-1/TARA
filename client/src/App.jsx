@@ -1,99 +1,248 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
 import MainScreen from "./MainScreen";
-import SecretCodeScreen from "./components/SecretCodeScreen";
+import AccessGateScreen from "./components/AccessGateScreen";
 import FloatingHearts from "./components/FloatingHearts";
 import BirthdayPopup from "./components/BirthdayPopup";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./components/AdminDashboard";
 import PreviewPage from "./components/PreviewPage";
 import BirthdayIntro from "./components/BirthdayIntro";
+import RotateDeviceScreen from "./components/RotateDeviceScreen";
+import CodeIntro from "./components/CodeIntro";
 import { useSiteContent } from "./hooks/useSiteContent";
 
-const UNLOCK_STORAGE_KEY = "birthday_site_unlocked";
+const ACCESS_MODE_STORAGE_KEY = "birthday_site_access_mode";
+const GUEST_CONTENT_STORAGE_KEY = "birthday_site_guest_content";
+const GUEST_PROGRESS_STORAGE_KEY = "birthday_site_guest_progress";
+
+const isReloadNavigation = (() => {
+  try {
+    const entry = window.performance?.getEntriesByType?.("navigation")?.[0];
+    return entry?.type === "reload" || window.performance?.navigation?.type === 1;
+  } catch {
+    return false;
+  }
+})();
+
+function readGuestContent() {
+  try {
+    const raw = localStorage.getItem(GUEST_CONTENT_STORAGE_KEY);
+    if (!raw) return { notes: [], gallery: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      notes: Array.isArray(parsed?.notes) ? parsed.notes : [],
+      gallery: Array.isArray(parsed?.gallery) ? parsed.gallery : [],
+    };
+  } catch {
+    return { notes: [], gallery: [] };
+  }
+}
+
+function readGuestProgress() {
+  try {
+    const raw = localStorage.getItem(GUEST_PROGRESS_STORAGE_KEY);
+    if (!raw) return { messageDone: false, imageDone: false };
+    const parsed = JSON.parse(raw);
+    return {
+      messageDone: Boolean(parsed?.messageDone),
+      imageDone: Boolean(parsed?.imageDone),
+    };
+  } catch {
+    return { messageDone: false, imageDone: false };
+  }
+}
+
+function serializeNote(note = {}) {
+  return [
+    note.name || "",
+    note.role || "",
+    note.message || "",
+    note.avatarUrl || "",
+  ].join("|");
+}
+
+function serializeGalleryItem(item = {}) {
+  return [
+    item.imageUrl || "",
+    item.caption || "",
+    item.mediaType || "image",
+  ].join("|");
+}
 
 function App() {
-  const path = window.location.pathname;
-  const isAdminLoginRoute = path === "/admin/login";
-  const isAdminDashboardRoute = path === "/admin/dashboard";
-  const isAdminRootRoute = path === "/admin";
-  const isPreviewRoute = path.startsWith("/preview/");
+  const [accessMode, setAccessMode] = useState(() => {
+    if (isReloadNavigation) {
+      localStorage.removeItem(ACCESS_MODE_STORAGE_KEY);
+      return "";
+    }
 
-  const [unlocked, setUnlocked] = useState(
-    () => localStorage.getItem(UNLOCK_STORAGE_KEY) === "true",
-  );
+    return localStorage.getItem(ACCESS_MODE_STORAGE_KEY) === "guest" ? "guest" : "";
+  });
+  const [guestContent, setGuestContent] = useState(() => readGuestContent());
+  const [guestProgress, setGuestProgress] = useState(() => readGuestProgress());
+  const [guestUnlockTick, setGuestUnlockTick] = useState(0);
   const [showPopup, setShowPopup] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [siteEnter, setSiteEnter] = useState(false);
+  const [codeIntroCompleted, setCodeIntroCompleted] = useState(false);
+  const musicRef = useRef(null);
+  const [isLandscape, setIsLandscape] = useState(() =>
+    window.innerWidth >= window.innerHeight,
+  );
   const { data: content, isLoading, isError, error } = useSiteContent();
 
-  const onUnlock = () => {
-    localStorage.setItem(UNLOCK_STORAGE_KEY, "true");
-    setUnlocked(true);
-    setShowPopup(true);
-  };
+  useEffect(() => {
+    const updateOrientation = () => {
+      setIsLandscape(window.innerWidth >= window.innerHeight);
+    };
+
+    updateOrientation();
+    window.addEventListener("resize", updateOrientation);
+    window.addEventListener("orientationchange", updateOrientation);
+
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+      window.removeEventListener("orientationchange", updateOrientation);
+    };
+  }, []);
 
   useEffect(() => {
-    if (isAdminRootRoute) {
-      window.location.href = "/admin/dashboard";
+    if (!content) return;
+
+    const serverNotes = new Set((content.notes || []).map(serializeNote));
+    const serverGallery = new Set((content.gallery || []).map(serializeGalleryItem));
+
+    setGuestContent((current) => {
+      const currentNotes = Array.isArray(current?.notes) ? current.notes : [];
+      const currentGallery = Array.isArray(current?.gallery) ? current.gallery : [];
+
+      const nextNotes = currentNotes.filter((note) =>
+        serverNotes.has(serializeNote(note)),
+      );
+      const nextGallery = currentGallery.filter((item) =>
+        serverGallery.has(serializeGalleryItem(item)),
+      );
+
+      const changed =
+        nextNotes.length !== currentNotes.length ||
+        nextGallery.length !== currentGallery.length;
+
+      if (!changed) {
+        return current;
+      }
+
+      const nextContent = {
+        notes: nextNotes,
+        gallery: nextGallery,
+      };
+
+      localStorage.setItem(GUEST_CONTENT_STORAGE_KEY, JSON.stringify(nextContent));
+
+      if (nextNotes.length === 0 && nextGallery.length === 0) {
+        const resetProgress = { messageDone: false, imageDone: false };
+        setGuestProgress(resetProgress);
+        localStorage.setItem(
+          GUEST_PROGRESS_STORAGE_KEY,
+          JSON.stringify(resetProgress),
+        );
+      }
+
+      return nextContent;
+    });
+  }, [content]);
+
+  const persistAccessMode = (mode) => {
+    if (mode === "guest") {
+      localStorage.setItem(ACCESS_MODE_STORAGE_KEY, "guest");
+      setShowPopup(true);
+    } else {
+      localStorage.removeItem(ACCESS_MODE_STORAGE_KEY);
     }
-  }, [isAdminRootRoute]);
 
-  if (isPreviewRoute) {
-    return <PreviewPage />;
-  }
+    setAccessMode(mode);
+  };
 
-  if (isAdminLoginRoute) {
-    return <AdminLogin />;
-  }
+  const handleCodeIntroComplete = () => {
+    setCodeIntroCompleted(true);
+  };
 
-  if (isAdminDashboardRoute) {
-    return <AdminDashboard />;
-  }
+  const handleMusicStart = async () => {
+    const audio = musicRef.current;
+    if (!audio) {
+      throw new Error("Music player is not available.");
+    }
 
-  if (isLoading) {
-    return (
-      <main className="app-state">
-        <div className="loading-container">
-          <div className="loading-hearts">
-            <span>❤️</span>
-            <span>💕</span>
-            <span>💖</span>
-          </div>
-          <p className="loading-text">Loading something special...</p>
-        </div>
-      </main>
-    );
-  }
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.currentTime = 10;
 
-  if (isError) {
-    return (
-      <main className="app-state">
-        <div className="error-container">
-          <div className="error-icon">⚠️</div>
-          <h2>Oops! Couldn't load the content</h2>
-          <p>{error.message}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="error-retry-btn"
-          >
-            Try Again
-          </button>
-        </div>
-      </main>
-    );
-  }
+    await audio.play();
+  };
+
+
+  const handleContributionSaved = (item) => {
+    if (!item) return;
+
+    setGuestContent((current) => {
+      const nextContent = { ...current };
+
+      if (item.type === "message" && item.note) {
+        nextContent.notes = [item.note, ...(current.notes || [])];
+      }
+
+      if (item.type === "image" && item.galleryItem) {
+        nextContent.gallery = [item.galleryItem, ...(current.gallery || [])];
+      }
+
+      localStorage.setItem(GUEST_CONTENT_STORAGE_KEY, JSON.stringify(nextContent));
+      return nextContent;
+    });
+
+    if (accessMode === "guest") {
+      setGuestProgress((current) => {
+        const nextProgress = { ...current };
+
+        if (item.type === "message") nextProgress.messageDone = true;
+        if (item.type === "image") nextProgress.imageDone = true;
+
+        if (item.type === "image" && current.messageDone && !current.imageDone) {
+          setGuestUnlockTick((value) => value + 1);
+        }
+
+        localStorage.setItem(
+          GUEST_PROGRESS_STORAGE_KEY,
+          JSON.stringify(nextProgress),
+        );
+        return nextProgress;
+      });
+    }
+  };
 
   const mainContent = (
     <div className={`site-shell${siteEnter ? " site-shell-enter" : ""}`}>
+      <audio ref={musicRef} src="/music/track.mp3" preload="auto" loop />
       <FloatingHearts />
-      {!unlocked ? (
-        <SecretCodeScreen
-          onSuccess={onUnlock}
-          secretCode={content?.secretCode}
+      {!accessMode ? (
+        <AccessGateScreen
+          onAllowFullAccess={() => persistAccessMode("full")}
+          onAllowGuestAccess={() => persistAccessMode("guest")}
         />
+      ) : accessMode === "full" && !codeIntroCompleted ? (
+        <CodeIntro onComplete={handleCodeIntroComplete} onStartMusic={handleMusicStart} />
       ) : (
-        <MainScreen content={content} />
+        <MainScreen
+          content={content}
+          viewerMode={accessMode}
+          guestContent={guestContent}
+          guestProgress={guestProgress}
+          guestUnlockTick={guestUnlockTick}
+          musicRef={musicRef}
+          onContributionSaved={handleContributionSaved}
+          onGuestUpgradeRequest={() => persistAccessMode("full")}
+          hideContribute={accessMode === "full"}
+        />
       )}
       <BirthdayPopup
         open={showPopup}
@@ -104,17 +253,56 @@ function App() {
   );
 
   return (
-    <div>
-      {mainContent}
-      {showIntro && (
-        <BirthdayIntro
-          onComplete={() => {
-            setShowIntro(false);
-            setSiteEnter(true);
-          }}
-        />
-      )}
-    </div>
+    <Routes>
+      <Route path="/preview/:previewId" element={<PreviewPage />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="*"
+        element={
+          <div>
+            {!isLandscape && <RotateDeviceScreen />}
+            {isLoading ? (
+              <main className="app-state">
+                <div className="loading-container">
+                  <div className="loading-hearts">
+                    <span>❤️</span>
+                    <span>💕</span>
+                    <span>💖</span>
+                  </div>
+                  <p className="loading-text">Loading something special...</p>
+                </div>
+              </main>
+            ) : isError ? (
+              <main className="app-state">
+                <div className="error-container">
+                  <div className="error-icon">⚠️</div>
+                  <h2>Oops! Couldn't load the content</h2>
+                  <p>{error.message}</p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="error-retry-btn"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </main>
+            ) : (
+              mainContent
+            )}
+            {showIntro && isLandscape && (
+              <BirthdayIntro
+                onComplete={() => {
+                  setShowIntro(false);
+                  setSiteEnter(true);
+                }}
+              />
+            )}
+          </div>
+        }
+      />
+    </Routes>
   );
 }
 

@@ -229,7 +229,7 @@ function BirthdayIntro({ onComplete }) {
       ) : (
         <section className="intro-screen intro-screen-visible">
           <h2 className="intro-message intro-gradient-text">
-            Happy Birthday Tara, Babe {"\u{1F495}"}
+            Happy Birthday Tara! {"\u{1F495}"}
           </h2>
         </section>
       )}

@@ -1,12 +1,10 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
 import { apiGet } from "../services/apiClient";
 
 const PreviewPage = () => {
-  const previewId = useMemo(() => {
-    const parts = window.location.pathname.split("/");
-    return parts[2] || "";
-  }, []);
+  const { previewId = "" } = useParams();
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["preview", previewId],

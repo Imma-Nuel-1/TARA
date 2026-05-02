@@ -2,7 +2,6 @@ const countdownScreen = document.getElementById("countdown-screen");
 const countdownNumber = document.getElementById("countdown-number");
 const messageScreen = document.getElementById("message-screen");
 const rainLayer = document.getElementById("rain-layer");
-const music = document.getElementById("bg-music");
 const bgCanvas = document.getElementById("bg-letters");
 
 const phraseChars = Array.from("HAPPY BIRTHDAY TARA BABE \u{1F495}").filter(
@@ -161,28 +160,8 @@ function startTextRain() {
   rainIntervalId = setInterval(spawnRainLetter, 180);
 }
 
-function initMusic() {
-  if (!music) {
-    return;
-  }
-
-  music.volume = 0.14;
-
-  const tryPlay = () => {
-    const playResult = music.play();
-    if (playResult && typeof playResult.catch === "function") {
-      playResult.catch(() => {
-        // Ignore autoplay block; first user interaction will retry.
-      });
-    }
-  };
-
-  tryPlay();
-  window.addEventListener("pointerdown", tryPlay, { once: true });
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   createLetterField(bgCanvas);
-  initMusic();
   startCountdown();
 });

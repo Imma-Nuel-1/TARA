@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./AdminPage.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
@@ -6,6 +7,7 @@ const ADMIN_AUTH_STORAGE_KEY = "birthday_admin_auth";
 const ACTIVITY_LOG_KEY = "admin_activity_log";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [token, setToken] = useState("");
   const [username, setUsername] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -35,7 +37,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const savedAuth = localStorage.getItem(ADMIN_AUTH_STORAGE_KEY);
     if (!savedAuth) {
-      window.location.href = "/admin/login";
+      navigate("/admin/login", { replace: true });
       return;
     }
 
@@ -47,11 +49,11 @@ const AdminDashboard = () => {
         loadContent(parsed.token);
         loadAllData(parsed.token);
       } else {
-        window.location.href = "/admin/login";
+        navigate("/admin/login", { replace: true });
       }
     } catch {
       localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY);
-      window.location.href = "/admin/login";
+      navigate("/admin/login", { replace: true });
     }
 
     // Load activity log from localStorage
@@ -63,7 +65,7 @@ const AdminDashboard = () => {
         setActivityLog([]);
       }
     }
-  }, []);
+  }, [navigate]);
 
   const addToActivityLog = (action, itemTitle, itemType) => {
     const newEntry = {
@@ -123,11 +125,25 @@ const AdminDashboard = () => {
       const approved = approvedRes.ok
         ? approvedData.filter((item) => item.type === "message" || item.type === "image")
         : [];
-      setApprovedItems(approved);
+
+      // Load published (auto-published posts)
+      const publishedRes = await fetch(`${API_BASE}/api/content?status=published`, {
+        headers,
+      });
+      const publishedData = await publishedRes.json();
+      const published = publishedRes.ok
+        ? publishedData.filter((item) => item.type === "message" || item.type === "image")
+        : [];
+
+      // Combine all posts (approved + published)
+      const allPosts = [...approved, ...published].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setApprovedItems(allPosts);
 
       // Calculate stats
-      const approvedMessages = approved.filter((item) => item.type === "message").length;
-      const approvedImages = approved.filter((item) => item.type === "image").length;
+      const approvedMessages = allPosts.filter((item) => item.type === "message").length;
+      const approvedImages = allPosts.filter((item) => item.type === "image").length;
       const totalContent =
         (content?.playlist?.length || 0) +
         (content?.gallery?.length || 0) +
@@ -148,7 +164,7 @@ const AdminDashboard = () => {
 
   const logout = () => {
     localStorage.removeItem(ADMIN_AUTH_STORAGE_KEY);
-    window.location.href = "/admin/login";
+    navigate("/admin/login", { replace: true });
   };
 
   const loadPendingMessages = async () => {
@@ -222,9 +238,40 @@ const AdminDashboard = () => {
     }
   };
 
+  const deleteItem = async (id, source = "approved") => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    
+    const items = source === "approved" ? approvedItems : pendingItems;
+    const item = items.find((i) => i._id === id);
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/content/${id}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+
+      if (res.ok) {
+        if (source === "approved") {
+          setApprovedItems((items) => items.filter((item) => item._id !== id));
+        } else {
+          setPendingItems((items) => items.filter((item) => item._id !== id));
+        }
+        setStatus("Post deleted successfully");
+        addToActivityLog("Deleted", item?.title || "Untitled", item?.type || "item");
+      } else {
+        setStatus("Failed to delete");
+      }
+    } catch (err) {
+      setStatus("Error deleting post");
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "moderation" && token) {
       loadPendingMessages();
+    }
+    if ((activeTab === "posts" || activeTab === "dashboard") && token) {
+      loadAllData(token);
     }
   }, [activeTab, token]);
 
@@ -357,6 +404,25 @@ const AdminDashboard = () => {
               }}
             >
               Moderation {stats.pending > 0 && `(${stats.pending})`}
+            </button>
+            <button
+              onClick={() => setActiveTab("posts")}
+              style={{
+                padding: "1rem 1.5rem",
+                background: "none",
+                border: "none",
+                borderBottom:
+                  activeTab === "posts"
+                    ? "3px solid #007bff"
+                    : "3px solid transparent",
+                color: activeTab === "posts" ? "#007bff" : "#666",
+                fontWeight: activeTab === "posts" ? "600" : "400",
+                cursor: "pointer",
+                fontSize: "1rem",
+                transition: "all 0.2s",
+              }}
+            >
+              All Posts
             </button>
             <button
               onClick={() => setActiveTab("activity")}
@@ -903,38 +969,214 @@ const AdminDashboard = () => {
                         </div>
                       )}
 
-                      <div style={{ display: "flex", gap: "1rem" }}>
-                        <button
-                          onClick={() => approveItem(item._id)}
-                          style={{
-                            padding: "0.5rem 1.5rem",
-                            background: "#28a745",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "0.875rem",
-                            fontWeight: "500",
-                          }}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => rejectItem(item._id)}
-                          style={{
-                            padding: "0.5rem 1.5rem",
-                            background: "#dc3545",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            fontSize: "0.875rem",
-                            fontWeight: "500",
-                          }}
-                        >
-                          Reject
-                        </button>
+                      <div
+                        style={{
+                          padding: "0.85rem 1rem",
+                          borderRadius: "6px",
+                          background: "#eef7ff",
+                          color: "#004085",
+                          border: "1px solid #b8daff",
+                          fontSize: "0.875rem",
+                        }}
+                      >
+                        Published automatically. No review step is required.
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ALL POSTS TAB */}
+          {activeTab === "posts" && (
+            <div>
+              <h2 style={{ marginTop: 0, color: "#333", fontSize: "1.5rem", marginBottom: "1.5rem" }}>
+                All Posts ({approvedItems.length})
+              </h2>
+              
+              {loading ? (
+                <p style={{ color: "#666" }}>Loading posts...</p>
+              ) : approvedItems.length === 0 ? (
+                <p style={{ color: "#999", textAlign: "center", padding: "2rem" }}>
+                  No posts yet
+                </p>
+              ) : (
+                <div style={{ display: "grid", gap: "1rem" }}>
+                  {approvedItems.map((item) => (
+                    <div
+                      key={item._id}
+                      style={{
+                        padding: "1.25rem",
+                        background: "#f9f9f9",
+                        border: "1px solid #e0e0e0",
+                        borderRadius: "8px",
+                        display: "grid",
+                        gridTemplateColumns: item.type === "image" ? "120px 1fr 100px" : "1fr 100px",
+                        gap: "1rem",
+                        alignItems: "start",
+                      }}
+                    >
+                      {/* Image/Video Thumbnail */}
+                      {item.type === "image" && item.data?.url && (
+                        <div
+                          style={{
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#e9ecef",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {item.data.mediaType === "video" ? (
+                            <video
+                              src={item.data.url}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          ) : (
+                            <img
+                              src={item.data.url}
+                              alt={item.data.caption}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                            />
+                          )}
+                        </div>
+                      )}
+
+                      {/* Post Details */}
+                      <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.5rem",
+                            marginBottom: "0.5rem",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "0.25rem 0.75rem",
+                              background:
+                                item.type === "message"
+                                  ? "#d1ecf1"
+                                  : "#d4edda",
+                              color:
+                                item.type === "message"
+                                  ? "#0c5460"
+                                  : "#155724",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: "600",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {item.type}
+                          </span>
+                          <span style={{ fontSize: "0.875rem", color: "#666" }}>
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <h4 style={{ margin: "0 0 0.5rem 0", color: "#333", fontSize: "1rem" }}>
+                          {item.title}
+                        </h4>
+
+                        {item.type === "message" && (
+                          <div>
+                            <p
+                              style={{
+                                margin: "0.5rem 0",
+                                color: "#555",
+                                fontSize: "0.875rem",
+                              }}
+                            >
+                              <strong>From:</strong> {item.createdBy}
+                            </p>
+                            {item.data?.role && (
+                              <p
+                                style={{
+                                  margin: "0.5rem 0",
+                                  color: "#555",
+                                  fontSize: "0.875rem",
+                                }}
+                              >
+                                <strong>Relationship:</strong> {item.data.role}
+                              </p>
+                            )}
+                            <p
+                              style={{
+                                margin: "0.75rem 0 0 0",
+                                color: "#666",
+                                fontSize: "0.875rem",
+                                lineHeight: "1.4",
+                                maxHeight: "60px",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: "vertical",
+                              }}
+                            >
+                              {item.data?.message}
+                            </p>
+                          </div>
+                        )}
+
+                        {item.type === "image" && (
+                          <div>
+                            <p
+                              style={{
+                                margin: "0.5rem 0",
+                                color: "#555",
+                                fontSize: "0.875rem",
+                              }}
+                            >
+                              <strong>From:</strong> {item.createdBy}
+                            </p>
+                            <p
+                              style={{
+                                margin: "0.5rem 0",
+                                color: "#666",
+                                fontSize: "0.875rem",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              {item.data?.caption}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => deleteItem(item._id, "approved")}
+                        style={{
+                          padding: "0.5rem 1rem",
+                          background: "#dc3545",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          fontSize: "0.875rem",
+                          fontWeight: "500",
+                          whiteSpace: "nowrap",
+                          height: "fit-content",
+                        }}
+                      >
+                        🗑️ Delete
+                      </button>
                     </div>
                   ))}
                 </div>

@@ -1,9 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const ADMIN_AUTH_STORAGE_KEY = "birthday_admin_auth";
 
 const AdminLogin = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState("");
@@ -43,7 +45,7 @@ const AdminLogin = () => {
 
       setStatus("Login successful! Redirecting...");
       setTimeout(() => {
-        window.location.href = "/admin/dashboard";
+        navigate("/admin/dashboard", { replace: true });
       }, 500);
     } catch (err) {
       setStatus("Connection error. Please try again.");
