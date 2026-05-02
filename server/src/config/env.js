@@ -4,7 +4,10 @@ dotenv.config();
 
 export const env = {
   port: Number(process.env.PORT || 5000),
-  mongoUri: process.env.MONGO_URI || "mongodb://127.0.0.1:27017/birthday_site",
+  mongoUri:
+    process.env.MONGO_URI ||
+    process.env.MONGODB_CONNECTION_STRING ||
+    "mongodb://127.0.0.1:27017/birthday_site",
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
   adminUsername: process.env.ADMIN_USERNAME || "adesa",
   adminPassword: process.env.ADMIN_PASSWORD || "Adesa@26022002",
