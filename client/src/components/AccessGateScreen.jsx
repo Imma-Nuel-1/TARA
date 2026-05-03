@@ -64,7 +64,7 @@ const AccessGateScreen = ({
                 <input
                   type="password"
                   id="access-code-input"
-                  className="code-input"
+                  className="code-input access-code-input"
                   placeholder="••••••"
                   maxLength={6}
                   value={code}

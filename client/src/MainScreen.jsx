@@ -3,7 +3,6 @@ import LoveLetterSection from "./components/LoveLetterSection";
 import NotesSection from "./components/NotesSection";
 import GallerySection from "./components/GallerySection";
 import ContributeSection from "./components/ContributeSection";
-import GuestCodeUpgrade from "./components/GuestCodeUpgrade";
 
 const NAV_SECTIONS = [
   { id: "love-letter", icon: "❤️", text: "Love Letter" },
@@ -13,9 +12,9 @@ const NAV_SECTIONS = [
 ];
 
 const GUEST_NAV_SECTIONS = [
-  { id: "notes", icon: "📝", text: "All Messages" },
-  { id: "gallery", icon: "🌷", text: "All Gallery" },
-  { id: "contribute", icon: "✨", text: "Contribute" },
+  { id: "notes", icon: "📝", text: "My Messages" },
+  { id: "gallery", icon: "🌷", text: "My Gallery" },
+  { id: "contribute", icon: "✨", text: "Share a Memory" },
 ];
 
 const MainScreen = ({
@@ -26,7 +25,6 @@ const MainScreen = ({
   guestUnlockTick = 0,
   musicRef,
   onContributionSaved,
-  onGuestUpgradeRequest,
   hideContribute = false,
 }) => {
   const isGuestMode = viewerMode === "guest";
@@ -51,17 +49,16 @@ const MainScreen = ({
   const [activeSection, setActiveSection] = useState(
     isGuestMode ? "contribute" : "love-letter",
   );
-  const [showCodeUpgrade, setShowCodeUpgrade] = useState(false);
 
   useEffect(() => {
     if (isGuestMode && !guestUnlocked) {
-      setActiveSection("contribute");
+      queueMicrotask(() => setActiveSection("contribute"));
     }
   }, [isGuestMode, guestUnlocked]);
 
   useEffect(() => {
     if (isGuestMode && guestUnlockTick > 0) {
-      setActiveSection("notes");
+      queueMicrotask(() => setActiveSection("notes"));
     }
   }, [isGuestMode, guestUnlockTick]);
 
@@ -74,39 +71,21 @@ const MainScreen = ({
     const publicNotes = content?.notes || [];
     const personalNotes = guestContent?.notes || [];
 
-    if (!isGuestMode) return publicNotes;
-    if (!guestUnlocked) return personalNotes;
+    // Guests should only see their own submissions (personalNotes).
+    if (isGuestMode) return personalNotes;
 
-    const seen = new Set();
-    const merged = [];
-    [...personalNotes, ...publicNotes].forEach((note) => {
-      const key = `${note?.name || ""}|${note?.message || ""}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(note);
-      }
-    });
-    return merged;
-  }, [isGuestMode, guestUnlocked, guestContent, content]);
+    return publicNotes;
+  }, [isGuestMode, guestContent, content]);
 
   const gallery = useMemo(() => {
     const publicGallery = content?.gallery || [];
     const personalGallery = guestContent?.gallery || [];
 
-    if (!isGuestMode) return publicGallery;
-    if (!guestUnlocked) return personalGallery;
+    // Guests should only see their own uploads (personalGallery).
+    if (isGuestMode) return personalGallery;
 
-    const seen = new Set();
-    const merged = [];
-    [...personalGallery, ...publicGallery].forEach((item) => {
-      const key = `${item?.imageUrl || ""}|${item?.caption || ""}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(item);
-      }
-    });
-    return merged;
-  }, [isGuestMode, guestUnlocked, guestContent, content]);
+    return publicGallery;
+  }, [isGuestMode, guestContent, content]);
 
   return (
     <div id="main-screen" className="screen active">
@@ -127,15 +106,6 @@ const MainScreen = ({
                 : "Step 2 of 2: Upload at least one photo or video to unlock the full gallery and messages."
             : "A curated memory space with music, stories, and love notes."}
         </p>
-        {isGuestMode && (
-          <button 
-            className="guest-code-btn"
-            onClick={() => setShowCodeUpgrade(true)}
-            title="Enter code to unlock full access"
-          >
-            🔑 Have a code?
-          </button>
-        )}
       </header>
       <nav className="top-nav">
         {navSections.map((section) => (
@@ -210,14 +180,6 @@ const MainScreen = ({
         </div>
       </footer>
 
-      <GuestCodeUpgrade 
-        isOpen={showCodeUpgrade}
-        onClose={() => setShowCodeUpgrade(false)}
-        onUpgrade={() => {
-          setShowCodeUpgrade(false);
-          onGuestUpgradeRequest?.();
-        }}
-      />
     </div>
   );
 };

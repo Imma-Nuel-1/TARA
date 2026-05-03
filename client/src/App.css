@@ -456,6 +456,23 @@ body {
   overflow-y: auto;
 }
 
+.access-gate-panel {
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 30px;
+  padding: 34px 28px;
+  max-width: 620px;
+  width: min(92vw, 620px);
+  box-shadow:
+    0 20px 60px rgba(255, 107, 157, 0.28),
+    0 0 40px rgba(217, 70, 239, 0.12);
+  text-align: center;
+  position: relative;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 182, 193, 0.45);
+  animation: slideUp 0.6s ease-out;
+  overflow: hidden;
+}
+
 #rotate-device-screen {
   justify-content: center;
   align-items: center;
@@ -806,6 +823,10 @@ body {
   color: var(--text-dark);
   font-weight: 700;
   text-align: left;
+}
+
+.access-code-input {
+  letter-spacing: 6px;
 }
 
 .gate-back-btn,
@@ -2117,9 +2138,11 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 300;
+  z-index: 10050;
   animation: fadeIn 0.4s ease-in-out;
   backdrop-filter: blur(5px);
+  overflow: hidden;
+  padding: 1rem;
 }
 
 .birthday-popup.show {
@@ -2129,10 +2152,22 @@ body {
 .birthday-content {
   background: rgba(255, 255, 255, 0.97);
   border-radius: 30px;
-  padding: 60px 40px;
-  max-width: 500px;
+  padding: clamp(28px, 5vw, 52px) clamp(22px, 4vw, 40px);
+  max-width: 520px;
+  width: min(92vw, 520px);
   text-align: center;
   box-shadow: 0 30px 80px rgba(255, 107, 157, 0.4);
+  animation: popupSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.birthday-popup.show .birthday-content {
   animation: popupSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -2147,17 +2182,32 @@ body {
   }
 }
 
+.birthday-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 107, 157, 0.1);
+  color: #a33665;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+}
+
 .birthday-content h1 {
-  font-size: 2.5rem;
+  font-size: clamp(2rem, 5vw, 2.5rem);
   color: var(--dark-pink);
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .birthday-content p {
-  font-size: 1.1rem;
+  font-size: clamp(1rem, 2.5vw, 1.1rem);
   color: var(--text-dark);
-  margin-bottom: 30px;
+  margin-bottom: 4px;
   line-height: 1.6;
+  max-width: 28ch;
 }
 
 .popup-close-btn {
@@ -2171,6 +2221,21 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: var(--shadow);
+}
+
+@media (max-height: 700px) {
+  .birthday-content {
+    gap: 12px;
+    padding: 22px 18px;
+  }
+
+  .birthday-content p {
+    line-height: 1.45;
+  }
+
+  .popup-close-btn {
+    padding: 12px 30px;
+  }
 }
 
 .popup-close-btn:hover {
@@ -2497,15 +2562,16 @@ body {
   }
 
   .lightbox-content {
-    max-width: 95%;
+    padding: 1rem;
   }
 
   .lightbox-caption {
     position: relative;
-    bottom: auto;
     left: auto;
     transform: none;
     font-size: 1rem;
+    max-width: 90%;
+    margin-top: 12px;
   }
 
   .load-more-btn {
@@ -2525,8 +2591,9 @@ body {
     font-size: 1rem;
   }
 
-  .volume-slider {
-    width: 100px;
+  .popup-close-btn {
+    width: 100%;
+    max-width: 220px;
   }
 }
 
@@ -2939,6 +3006,7 @@ body {
 
   .site-title {
     font-size: 2.5rem;
+    color: #9d2d5d;
   }
 
   .top-nav {
@@ -3226,10 +3294,12 @@ body {
 }
 
 .code-intro-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.96);
   border-radius: 30px;
   padding: 3rem 2.5rem;
-  box-shadow: 0 20px 60px rgba(255, 107, 157, 0.25);
+  box-shadow:
+    0 20px 60px rgba(255, 107, 157, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.42) inset;
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255, 182, 193, 0.4);
 }
@@ -3290,7 +3360,7 @@ body {
   letter-spacing: 0.3px;
 }
 
-.code-input {
+.code-intro-card .code-input {
   width: 100%;
   padding: 1.25rem;
   border: 2px solid rgba(255, 182, 193, 0.4);
@@ -3305,14 +3375,14 @@ body {
   transition: all 0.3s ease;
 }
 
-.code-input:focus {
+.code-intro-card .code-input:focus {
   outline: none;
   border-color: #ff6bb5;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
 }
 
-.code-input::placeholder {
+.code-intro-card .code-input::placeholder {
   color: #bbb;
 }
 

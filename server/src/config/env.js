@@ -2,17 +2,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Normalize CORS origin by removing trailing slashes
-const normalizeCorsOrigin = (origin) => {
-  if (typeof origin === "string") {
-    return origin.replace(/\/$/, "");
-  }
-  if (Array.isArray(origin)) {
-    return origin.map((o) =>
-      typeof o === "string" ? o.replace(/\/$/, "") : o
-    );
-  }
-  return origin;
+// Normalize and parse CORS origins (supports comma-separated env var values)
+const parseCorsOrigins = (raw) => {
+  const fallback = ["https://tara-lime.vercel.app", "http://localhost:5173"];
+  const value = typeof raw === "string" ? raw : "";
+
+  const parsed = value
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
+  return parsed.length > 0 ? parsed : fallback;
 };
 
 export const env = {
@@ -24,10 +24,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || "change-this-in-production",
   adminUsername: process.env.ADMIN_USERNAME || "adesa",
   adminPassword: process.env.ADMIN_PASSWORD || "Adesa@26022002",
-  corsOrigin: normalizeCorsOrigin(
-    process.env.CORS_ORIGIN ||
-      "https://tara-lime.vercel.app"
-  ),
+  corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN),
   cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
   cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
   cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",

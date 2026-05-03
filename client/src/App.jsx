@@ -114,42 +114,44 @@ function App() {
     const serverNotes = new Set((content.notes || []).map(serializeNote));
     const serverGallery = new Set((content.gallery || []).map(serializeGalleryItem));
 
-    setGuestContent((current) => {
-      const currentNotes = Array.isArray(current?.notes) ? current.notes : [];
-      const currentGallery = Array.isArray(current?.gallery) ? current.gallery : [];
+    queueMicrotask(() => {
+      setGuestContent((current) => {
+        const currentNotes = Array.isArray(current?.notes) ? current.notes : [];
+        const currentGallery = Array.isArray(current?.gallery) ? current.gallery : [];
 
-      const nextNotes = currentNotes.filter((note) =>
-        serverNotes.has(serializeNote(note)),
-      );
-      const nextGallery = currentGallery.filter((item) =>
-        serverGallery.has(serializeGalleryItem(item)),
-      );
-
-      const changed =
-        nextNotes.length !== currentNotes.length ||
-        nextGallery.length !== currentGallery.length;
-
-      if (!changed) {
-        return current;
-      }
-
-      const nextContent = {
-        notes: nextNotes,
-        gallery: nextGallery,
-      };
-
-      localStorage.setItem(GUEST_CONTENT_STORAGE_KEY, JSON.stringify(nextContent));
-
-      if (nextNotes.length === 0 && nextGallery.length === 0) {
-        const resetProgress = { messageDone: false, imageDone: false };
-        setGuestProgress(resetProgress);
-        localStorage.setItem(
-          GUEST_PROGRESS_STORAGE_KEY,
-          JSON.stringify(resetProgress),
+        const nextNotes = currentNotes.filter((note) =>
+          serverNotes.has(serializeNote(note)),
         );
-      }
+        const nextGallery = currentGallery.filter((item) =>
+          serverGallery.has(serializeGalleryItem(item)),
+        );
 
-      return nextContent;
+        const changed =
+          nextNotes.length !== currentNotes.length ||
+          nextGallery.length !== currentGallery.length;
+
+        if (!changed) {
+          return current;
+        }
+
+        const nextContent = {
+          notes: nextNotes,
+          gallery: nextGallery,
+        };
+
+        localStorage.setItem(GUEST_CONTENT_STORAGE_KEY, JSON.stringify(nextContent));
+
+        if (nextNotes.length === 0 && nextGallery.length === 0) {
+          const resetProgress = { messageDone: false, imageDone: false };
+          setGuestProgress(resetProgress);
+          localStorage.setItem(
+            GUEST_PROGRESS_STORAGE_KEY,
+            JSON.stringify(resetProgress),
+          );
+        }
+
+        return nextContent;
+      });
     });
   }, [content]);
 
@@ -240,15 +242,9 @@ function App() {
           guestUnlockTick={guestUnlockTick}
           musicRef={musicRef}
           onContributionSaved={handleContributionSaved}
-          onGuestUpgradeRequest={() => persistAccessMode("full")}
           hideContribute={accessMode === "full"}
         />
       )}
-      <BirthdayPopup
-        open={showPopup}
-        onClose={() => setShowPopup(false)}
-        title={content?.title}
-      />
     </div>
   );
 
@@ -291,6 +287,11 @@ function App() {
             ) : (
               mainContent
             )}
+            <BirthdayPopup
+              open={showPopup}
+              onClose={() => setShowPopup(false)}
+              title={content?.title}
+            />
             {showIntro && isLandscape && (
               <BirthdayIntro
                 onComplete={() => {

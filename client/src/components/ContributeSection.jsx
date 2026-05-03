@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const RELATIONSHIP_OPTIONS = [
@@ -7,284 +7,277 @@ const RELATIONSHIP_OPTIONS = [
   "Brother",
   "Close Friend",
   "Cousin",
-  "Classmate",
+  "Coursemate",
   "Family",
   "Other",
 ];
 
-const ContributeSection = ({ onContributionSaved, enforcedStep = "free" }) => {
-  const [activeForm, setActiveForm] = useState(
-    enforcedStep === "image" ? "image" : "message",
-  );
-  const [messageForm, setMessageForm] = useState({
+function detectMediaTypeFromData(dataUrl) {
+  if (!dataUrl) return "image";
+  return dataUrl.startsWith("data:video/") ? "video" : "image";
+}
+
+const ContributeSection = ({ onContributionSaved }) => {
+  const [form, setForm] = useState({
     name: "",
     role: "Friend",
     otherRole: "",
     message: "",
+    caption: "",
     avatarFileData: null,
     avatarFileName: "",
+    mediaFiles: [], // { fileData, fileName, mediaType }
   });
-  const [imageForm, setImageForm] = useState({
-    name: "",
-    caption: "",
-    files: [], // Array of {fileData, fileName}
-  });
-  const [messageErrors, setMessageErrors] = useState({});
-  const [imageErrors, setImageErrors] = useState({});
+  const [recordedVideo, setRecordedVideo] = useState(null); // { fileData, fileName, mediaType }
+
+  const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingIntervalRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const mediaStreamRef = useRef(null);
+  const previewVideoRef = useRef(null);
+
   useEffect(() => {
-    if (enforcedStep === "message") {
-      setActiveForm("message");
-      return;
-    }
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+    };
+  }, []);
 
-    if (enforcedStep === "image") {
-      setActiveForm("image");
-    }
-  }, [enforcedStep]);
+  const validate = () => {
+    const e = {};
+    if (!form.name.trim()) e.name = true;
+    if (!form.role) e.role = true;
+    if (form.role === "Other" && !form.otherRole.trim()) e.otherRole = true;
+    // require avatar
+    if (!form.avatarFileData) e.avatar = true;
 
-  const successMessage = (label) =>
-    `${label} received. Thank you for your wishes and for sharing a memory.`;
-
-  const validateMessageForm = () => {
-    const errors = {};
-
-    if (!messageForm.name.trim()) errors.name = true;
-    if (!messageForm.role) errors.role = true;
-    if (messageForm.role === "Other" && !messageForm.otherRole.trim()) {
-      errors.otherRole = true;
-    }
-    if (!messageForm.message.trim()) errors.message = true;
-    if (!messageForm.avatarFileData) errors.avatarFile = true;
-
-    return errors;
+    // require either a message or a recorded camera video
+    const hasRecordedVideo = Boolean(recordedVideo);
+    if (!form.message.trim() && !hasRecordedVideo) e.content = true;
+    if (form.mediaFiles.length === 0) e.memories = true;
+    // if media available require caption
+    if (form.mediaFiles.length > 0 && !form.caption.trim()) e.caption = true;
+    return e;
   };
 
-  const validateImageForm = () => {
-    const errors = {};
-
-    if (!imageForm.name.trim()) errors.name = true;
-    if (imageForm.files.length === 0) errors.fileData = true;
-    if (!imageForm.caption.trim()) errors.caption = true;
-
-    return errors;
-  };
-
-  const handleMessageSubmit = async (e) => {
-    e.preventDefault();
-    const errors = validateMessageForm();
-    setMessageErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setStatus("Please fill in all fields before submitting.");
-      return;
-    }
-
-    setLoading(true);
-    setStatus("Submitting your message...");
-
-    try {
-      let uploadedAvatarUrl = "";
-
-      setStatus("Uploading profile image...");
-      const uploadRes = await fetch(`${API_BASE}/api/media/upload`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          file: messageForm.avatarFileData,
-          filename: messageForm.avatarFileName,
-        }),
-      });
-
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) {
-        throw new Error(uploadData.message || "Profile image upload failed");
-      }
-
-      uploadedAvatarUrl = uploadData.url;
-
-      const resolvedRole =
-        messageForm.role === "Other"
-          ? messageForm.otherRole.trim()
-          : messageForm.role;
-
-      const res = await fetch(`${API_BASE}/api/content`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "message",
-          title: `Message from ${messageForm.name}`,
-          data: {
-            message: messageForm.message,
-            role: resolvedRole,
-            avatarUrl: uploadedAvatarUrl,
-          },
-          createdBy: messageForm.name,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setStatus(successMessage("Your message"));
-        onContributionSaved?.({
-          type: "message",
-          note: {
-            name: messageForm.name,
-            role: resolvedRole,
-            avatarUrl: uploadedAvatarUrl,
-            message: messageForm.message,
-          },
-        });
-        setImageForm((prev) => ({ ...prev, name: messageForm.name }));
-        setActiveForm("image");
-        setMessageForm({
-          name: "",
-          role: "Friend",
-          otherRole: "",
-          message: "",
-          avatarFileData: null,
-          avatarFileName: "",
-        });
-        setMessageErrors({});
-      } else {
-        setStatus(`Failed to submit: ${data.message || "Unknown error"}`);
-      }
-    } catch (err) {
-      setStatus(`Failed: ${err.message || "Connection error"}`);
-    }
-
-    setLoading(false);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((p) => ({ ...p, avatarFileData: reader.result, avatarFileName: file.name }));
+      setErrors((prev) => ({ ...prev, avatar: false }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = (e) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
-
-    const newFiles = [];
-    let filesProcessed = 0;
-
-    Array.from(selectedFiles).forEach((file) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const toAdd = [];
+    let done = 0;
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
-        newFiles.push({
-          fileData: reader.result,
-          fileName: file.name,
-        });
-        filesProcessed++;
-
-        if (filesProcessed === selectedFiles.length) {
-          setImageForm((prev) => ({
-            ...prev,
-            files: [...prev.files, ...newFiles],
-          }));
-          setImageErrors((prev) => ({ ...prev, fileData: false }));
+        toAdd.push({ fileData: reader.result, fileName: file.name, mediaType: detectMediaTypeFromData(reader.result), recorded: false });
+        done++;
+        if (done === files.length) {
+          setForm((p) => ({ ...p, mediaFiles: [...p.mediaFiles, ...toAdd] }));
+          setErrors((prev) => ({ ...prev, content: false }));
         }
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const removeFile = (index) => {
-    setImageForm((prev) => ({
-      ...prev,
-      files: prev.files.filter((_, i) => i !== index),
-    }));
+  const removeMedia = (idx) => {
+    setForm((p) => ({ ...p, mediaFiles: p.mediaFiles.filter((_, i) => i !== idx) }));
   };
 
-  const handleMessageAvatarChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      mediaStreamRef.current = stream;
+      previewVideoRef.current.srcObject = stream;
+      previewVideoRef.current.play().catch(() => {});
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setMessageForm((prev) => ({
-        ...prev,
-        avatarFileData: reader.result,
-        avatarFileName: file.name,
-      }));
-      setMessageErrors((prev) => ({ ...prev, avatarFile: false }));
-    };
-    reader.readAsDataURL(file);
-  };
+      recordedChunksRef.current = [];
+      const options = { mimeType: 'video/webm;codecs=vp9' };
+      const mr = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mr;
+      mr.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) recordedChunksRef.current.push(ev.data);
+      };
+      mr.onstop = async () => {
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const reader = new FileReader();
+        reader.onload = () => {
+          // show playback of recorded video
+          try {
+            if (previewVideoRef.current) {
+              try { previewVideoRef.current.srcObject = null; } catch {
+                // ignore clearing srcObject failures
+              }
+              previewVideoRef.current.src = reader.result;
+              previewVideoRef.current.play().catch(() => {});
+            }
+          } catch {
+            // ignore playback errors in preview mode
+          }
 
-  const detectMediaType = (fileData) => {
-    if (fileData && typeof fileData === "string") {
-      return fileData.startsWith("data:video/") ? "video" : "image";
+          setRecordedVideo({ fileData: reader.result, fileName: `wish-${Date.now()}.webm`, mediaType: 'video' });
+          setErrors((prev) => ({ ...prev, content: false }));
+        };
+        reader.readAsDataURL(blob);
+        // stop tracks
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          mediaStreamRef.current = null;
+        }
+      };
+      mr.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+    } catch (err) {
+      setStatus(`Camera error: ${err.message || err}`);
     }
-    return "image";
   };
 
-  const handleImageSubmit = async (e) => {
-    e.preventDefault();
-    const errors = validateImageForm();
-    setImageErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setStatus("Please fill in all fields before submitting.");
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+  };
+
+  const uploadFile = async (fileData, fileName) => {
+    const res = await fetch(`${API_BASE}/api/media/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file: fileData, filename: fileName }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Upload failed');
+    return json.url;
+  };
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault();
+    const v = validate();
+    setErrors(v);
+    if (Object.keys(v).length > 0) {
+      setStatus('Please complete the required fields.');
       return;
     }
 
     setLoading(true);
-    setStatus(`Uploading ${imageForm.files.length} file(s)...`);
+    setStatus('Submitting...');
 
     try {
-      for (let i = 0; i < imageForm.files.length; i++) {
-        const file = imageForm.files[i];
-        let uploadedUrl = "";
-
-        setStatus(`Uploading file ${i + 1} of ${imageForm.files.length}...`);
-        const uploadRes = await fetch(`${API_BASE}/api/media/upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file: file.fileData, filename: file.fileName }),
-        });
-
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.message || "Upload failed");
-        }
-
-        uploadedUrl = uploadData.url;
-
-        const res = await fetch(`${API_BASE}/api/content`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "image",
-            title: `Photo from ${imageForm.name}`,
-            data: {
-              url: uploadedUrl,
-              caption: imageForm.caption,
-              mediaType: detectMediaType(file.fileData),
-            },
-            createdBy: imageForm.name,
-            createdByRole: "user",
-          }),
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          onContributionSaved?.({
-            type: "image",
-            galleryItem: {
-              imageUrl: uploadedUrl,
-              caption: imageForm.caption,
-              mediaType: detectMediaType(file.fileData),
-            },
-          });
-        } else {
-          throw new Error(data.message || "Failed to save");
-        }
+      let avatarUrl = '';
+      if (form.avatarFileData) {
+        setStatus('Uploading profile image...');
+        avatarUrl = await uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`);
       }
 
-      setStatus(successMessage("Your uploads"));
-      setImageForm({ name: "", caption: "", files: [] });
-      setImageErrors({});
-      setActiveForm("message");
+      let recordedVideoUrl = '';
+      if (recordedVideo) {
+        setStatus('Uploading recorded video...');
+        recordedVideoUrl = await uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`);
+      }
+
+      if (recordedVideoUrl) {
+        setStatus('Saving recorded video to gallery...');
+        const recordedCaption = form.caption.trim() || form.message.trim() || `Recorded video from ${form.name}`;
+        const res = await fetch(`${API_BASE}/api/content`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'image',
+            title: `Recorded video from ${form.name}`,
+            data: { url: recordedVideoUrl, caption: recordedCaption, mediaType: 'video' },
+            createdBy: form.name,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save recorded video');
+        onContributionSaved?.({
+          type: 'image',
+          galleryItem: { imageUrl: recordedVideoUrl, caption: recordedCaption, mediaType: 'video' },
+        });
+      }
+
+      // Upload media files first
+      const uploadedMedia = [];
+      for (let i = 0; i < form.mediaFiles.length; i++) {
+        const mf = form.mediaFiles[i];
+        setStatus(`Uploading media ${i + 1} of ${form.mediaFiles.length}...`);
+        const url = await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`);
+        uploadedMedia.push({ url, caption: form.caption, mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData) });
+      }
+
+      // Create message content or a video-backed message
+      if (form.message.trim() || recordedVideoUrl) {
+        setStatus('Saving message...');
+        const resolvedRole = form.role === 'Other' ? form.otherRole.trim() : form.role;
+        const res = await fetch(`${API_BASE}/api/content`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'message',
+            title: recordedVideoUrl && !form.message.trim() ? `Video memory from ${form.name}` : `Message from ${form.name}`,
+            data: { message: form.message, videoUrl: recordedVideoUrl, role: resolvedRole, avatarUrl },
+            createdBy: form.name,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save message');
+        onContributionSaved?.({ type: 'message', note: { name: form.name, role: resolvedRole, avatarUrl, message: form.message, videoUrl: recordedVideoUrl } });
+      }
+
+      // Save uploaded media entries
+      for (let i = 0; i < uploadedMedia.length; i++) {
+        const m = uploadedMedia[i];
+        setStatus('Saving media entry...');
+        const res = await fetch(`${API_BASE}/api/content`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: m.mediaType === 'video' ? 'image' : 'image',
+            title: `Memory from ${form.name}`,
+            data: { url: m.url, caption: m.caption, mediaType: m.mediaType },
+            createdBy: form.name,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save media');
+        onContributionSaved?.({ type: 'image', galleryItem: { imageUrl: m.url, caption: m.caption, mediaType: m.mediaType } });
+      }
+
+      setStatus('Successfully shared. Thank you!');
+      setForm({ name: '', role: 'Friend', otherRole: '', message: '', caption: '', avatarFileData: null, avatarFileName: '', mediaFiles: [] });
+      setRecordedVideo(null);
+      setErrors({});
     } catch (err) {
-      setStatus(`Failed: ${err.message || "Connection error"}`);
+      setStatus(`Failed: ${err.message || 'Connection error'}`);
     }
 
     setLoading(false);
@@ -293,266 +286,132 @@ const ContributeSection = ({ onContributionSaved, enforcedStep = "free" }) => {
   return (
     <section id="contribute" className="section active">
       <div className="contribute-container">
-        <h2 className="section-title">Leave Your Mark</h2>
-        <p className="contribute-subtitle">
-          Share a birthday message or photo memory! You can contribute as many times as you'd like.
-        </p>
+        <h2 className="section-title">Share a Wish</h2>
+        <p className="contribute-subtitle">Send a personal message or record/upload a photo or video wish.</p>
 
-        {enforcedStep === "message" && (
-          <p className="contribute-step-note">
-            Step 1 of 2: Submit your message first. Once done, you will move to
-            upload.
-          </p>
-        )}
+        <form className="contribute-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="name">Your Name</label>
+            <input id="name" type="text" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} disabled={loading} className={errors.name ? 'input-error' : ''} required />
+          </div>
 
-        {enforcedStep === "image" && (
-          <p className="contribute-step-note">
-            Step 2 of 2: Upload at least one photo or video to unlock all
-            messages and uploads.
-          </p>
-        )}
+          <div className="form-group">
+            <label htmlFor="role">Relationship</label>
+            <select id="role" value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))} disabled={loading} className={errors.role ? 'input-error' : ''} required>
+              {RELATIONSHIP_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+          </div>
 
-        {/* Tab Switcher */}
-        <div className="contribute-tabs">
-          <button
-            type="button"
-            className={`contribute-tab ${activeForm === "message" ? "active" : ""}`}
-            onClick={() => {
-              if (enforcedStep === "image") return;
-              setActiveForm("message");
-              setStatus("");
-            }}
-            disabled={enforcedStep === "image"}
-          >
-            Leave a Message
-          </button>
-          <button
-            type="button"
-            className={`contribute-tab ${activeForm === "image" ? "active" : ""}`}
-            onClick={() => {
-              if (enforcedStep === "message") return;
-              setActiveForm("image");
-              setStatus("");
-            }}
-            disabled={enforcedStep === "message"}
-          >
-            Share a Photo or Video
-          </button>
-        </div>
-
-        {/* Message Form */}
-        {activeForm === "message" && (
-          <form className="contribute-form" onSubmit={handleMessageSubmit}>
+          {form.role === 'Other' && (
             <div className="form-group">
-              <label htmlFor="message-name">Your Name</label>
-              <input
-                id="message-name"
-                type="text"
-                placeholder="Enter your name"
-                className={messageErrors.name ? "input-error" : ""}
-                value={messageForm.name}
-                onChange={(e) =>
-                  setMessageForm({ ...messageForm, name: e.target.value })
-                }
-                disabled={loading}
-                required
-              />
+              <label htmlFor="otherRole">Type your relationship</label>
+              <input id="otherRole" type="text" value={form.otherRole} onChange={(e) => setForm((p) => ({ ...p, otherRole: e.target.value }))} disabled={loading} className={errors.otherRole ? 'input-error' : ''} required />
             </div>
+          )}
 
-            <div className="form-group">
-              <label htmlFor="message-role">Relationship</label>
-              <select
-                id="message-role"
-                className={messageErrors.role ? "input-error" : ""}
-                value={messageForm.role}
-                onChange={(e) =>
-                  setMessageForm({
-                    ...messageForm,
-                    role: e.target.value,
-                    otherRole: e.target.value === "Other" ? messageForm.otherRole : "",
-                  })
-                }
-                disabled={loading}
-                required
-              >
-                {RELATIONSHIP_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="form-group">
+            <label htmlFor="avatar">Profile Image</label>
+            <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} disabled={loading} className={errors.avatar ? 'input-error' : ''} required />
+          </div>
 
-            {messageForm.role === "Other" && (
-              <div className="form-group">
-                <label htmlFor="message-other-role">Type your relationship</label>
-                <input
-                  id="message-other-role"
-                  type="text"
-                  placeholder="e.g. Mentor"
-                  className={messageErrors.otherRole ? "input-error" : ""}
-                  value={messageForm.otherRole}
-                  onChange={(e) =>
-                    setMessageForm({ ...messageForm, otherRole: e.target.value })
-                  }
-                  disabled={loading}
-                  required
-                />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="contribute-card" style={{ padding: 12, borderRadius: 8, border: '1px solid #e6e6e6' }}>
+              <h3 style={{ margin: '0 0 6px 0' }}>1) Write a Message</h3>
+              <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Type a short text message — saved as a message entry and shown under <strong>My Messages</strong>. This does not create a gallery item.</div>
+              <div style={{ color: '#555', fontSize: 13, marginTop: 6 }}>
+                <div>- Use this for personal notes or wishes.</div>
+                <div>- Visible on the messages feed and linked to your profile image.</div>
               </div>
-            )}
-
-            <div className="form-group">
-              <label htmlFor="message-avatar-file">Profile Image</label>
-              <input
-                id="message-avatar-file"
-                type="file"
-                accept="image/*,image/png,image/jpeg,image/webp"
-                className={messageErrors.avatarFile ? "input-error" : ""}
-                onChange={handleMessageAvatarChange}
-                disabled={loading}
-                required
-              />
+              <div className="form-group">
+                <label htmlFor="message">Your Message</label>
+                <textarea id="message" rows={4} value={form.message} onChange={(e) => setForm((p) => ({ ...p, message: e.target.value }))} disabled={loading} placeholder="Write your heartfelt wish here..." style={{ width: '100%' }}></textarea>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="message-text">Your Birthday Message</label>
-              <textarea
-                id="message-text"
-                rows={6}
-                placeholder="Write your heartfelt birthday message here..."
-                className={messageErrors.message ? "input-error" : ""}
-                value={messageForm.message}
-                onChange={(e) =>
-                  setMessageForm({ ...messageForm, message: e.target.value })
-                }
-                disabled={loading}
-                required
-              />
-            </div>
+            <div className="contribute-card" style={{ padding: 12, borderRadius: 8, border: '1px solid #e6e6e6' }}>
+              <h3 style={{ margin: '0 0 6px 0' }}>2) Record a Video</h3>
+              <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Record a short video from your device camera. This is part of step 2, not step 3. If you don't type a message, the recorded video will become your message entry.</div>
+              <div style={{ color: '#555', fontSize: 13, marginTop: 6 }}>
+                <div>- Use this to capture a spoken wish or short clip.</div>
+                <div>- The recorded clip stays in this section so step 3 remains only for Memories uploads.</div>
+              </div>
 
-            <button
-              type="submit"
-              className="contribute-submit-btn"
-              disabled={loading}
-            >
-              {loading ? "Submitting..." : "Submit Message"}
-            </button>
-          </form>
-        )}
-
-        {/* Image Form */}
-        {activeForm === "image" && (
-          <form className="contribute-form" onSubmit={handleImageSubmit}>
-            <div className="form-group">
-              <label htmlFor="image-name">Your Name</label>
-              <input
-                id="image-name"
-                type="text"
-                placeholder="Enter your name"
-                className={imageErrors.name ? "input-error" : ""}
-                value={imageForm.name}
-                onChange={(e) =>
-                  setImageForm({ ...imageForm, name: e.target.value })
-                }
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="media-file">Upload from your device</label>
-              <input
-                id="media-file"
-                type="file"
-                multiple
-                accept="image/*,video/*,image/png,image/jpeg,video/mp4,video/quicktime,.pjmat"
-                className={imageErrors.fileData ? "input-error" : ""}
-                onChange={handleFileChange}
-                disabled={loading}
-              />
-              <small className="form-hint">
-                Upload multiple images or videos. Supported: PNG, JPG, MP4, MOV, etc.
-              </small>
-              
-              {imageForm.files.length > 0 && (
-                <div className="file-list" style={{ marginTop: "1rem" }}>
-                  <p style={{ fontSize: "0.9rem", fontWeight: "600", marginBottom: "0.5rem" }}>
-                    Selected files: {imageForm.files.length}
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {imageForm.files.map((file, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          background: "rgba(255,182,193,0.2)",
-                          padding: "0.75rem",
-                          borderRadius: "8px",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        <span>{file.fileName}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(idx)}
-                          disabled={loading}
-                          style={{
-                            background: "#ff6b6b",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "0.4rem 0.8rem",
-                            cursor: "pointer",
-                            fontSize: "0.85rem",
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <button type="button" onClick={isRecording ? stopRecording : startRecording} disabled={loading} aria-pressed={isRecording} style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    border: 'none',
+                    background: isRecording ? '#d32f2f' : '#f0f0f0',
+                    color: isRecording ? '#fff' : '#111',
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {isRecording ? 'Stop' : 'Record'}
+                  </button>
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 10, background: isRecording ? '#d32f2f' : '#ccc', display: 'inline-block' }} />
+                    <span style={{ color: '#666', fontSize: 13 }}>{isRecording ? 'Recording' : 'Ready'}</span>
                   </div>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#666', fontSize: 13, marginBottom: 6 }}>
+                    {isRecording ? `Recording — ${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}` : 'Preview / Playback'}
+                  </div>
+                  <video ref={previewVideoRef} style={{ width: '100%', borderRadius: 6, background: '#000' }} controls />
+                  {recordedVideo && !isRecording && (
+                    <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                      <span style={{ color: '#555', fontSize: 13 }}>Recorded clip ready for step 2 submission.</span>
+                      <button type="button" onClick={() => setRecordedVideo(null)} disabled={loading}>Remove clip</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="contribute-card" style={{ padding: 12, borderRadius: 8, border: '1px solid #e6e6e6' }}>
+              <h3 style={{ margin: '0 0 6px 0' }}>3) Add Memories (Photo / Video)</h3>
+              <div style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>Upload photos or videos to be saved as <strong>Memories</strong> in the gallery. This section is required. Each uploaded memory creates a gallery item and requires a caption.</div>
+              <div style={{ color: '#555', fontSize: 13, marginTop: 6 }}>
+                <div>- Use this to contribute images or videos that should appear in the public gallery.</div>
+                <div>- Captions are required for each memory so visitors have context.</div>
+              </div>
+              <div className="form-group">
+                <label>Memories Upload</label>
+                <input type="file" accept="image/*,video/*" multiple onChange={handleFileChange} disabled={loading} />
+              </div>
+
+              {errors.memories && <div className="form-error">Please add at least one memory upload.</div>}
+
+              {form.mediaFiles.length > 0 && (
+                <div className="file-list" style={{ marginTop: '0.5rem' }}>
+                  {form.mediaFiles.map((f, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0' }}>
+                      <span>{f.fileName || `memory-${idx + 1}`} ({f.mediaType})</span>
+                      <button type="button" onClick={() => removeMedia(idx)} disabled={loading}>Remove</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-
-            <div className="form-group">
-              <label htmlFor="image-caption">Caption</label>
-              <input
-                id="image-caption"
-                type="text"
-                placeholder="Describe the memory or moment"
-                className={imageErrors.caption ? "input-error" : ""}
-                value={imageForm.caption}
-                onChange={(e) =>
-                  setImageForm({ ...imageForm, caption: e.target.value })
-                }
-                disabled={loading}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="contribute-submit-btn"
-              disabled={loading}
-            >
-              {loading ? "Submitting..." : "Submit"}
-            </button>
-          </form>
-        )}
-
-        {/* Status Message */}
-        {status && (
-          <div
-            className={`contribute-status ${
-                  status.toLowerCase().includes("submitted") ? "success" : "error"
-                }`}
-          >
-            {status}
           </div>
-        )}
+
+          <div className="form-group">
+            <label htmlFor="caption">Caption (required for memories)</label>
+            <input id="caption" type="text" value={form.caption} onChange={(e) => setForm((p) => ({ ...p, caption: e.target.value }))} disabled={loading} className={errors.caption ? 'input-error' : ''} />
+          </div>
+
+          {errors.content && <div className="form-error">Please provide a message or upload a photo/video.</div>}
+
+          <button type="submit" className="contribute-submit-btn" disabled={loading}>{loading ? 'Submitting...' : 'Share'}</button>
+        </form>
+
+        {status && <div className={`contribute-status ${status.toLowerCase().includes('successfully') ? 'success' : 'error'}`}>{status}</div>}
       </div>
     </section>
   );
