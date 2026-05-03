@@ -1,6 +1,16 @@
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
-dotenv.config();
+const defaultEnvFile = process.env.NODE_ENV === "development" ? ".env.development" : ".env";
+const selectedEnvFile = process.env.ENV_FILE || defaultEnvFile;
+const selectedEnvPath = path.resolve(process.cwd(), selectedEnvFile);
+
+if (fs.existsSync(selectedEnvPath)) {
+  dotenv.config({ path: selectedEnvPath });
+} else {
+  dotenv.config();
+}
 
 // Normalize and parse CORS origins (supports comma-separated env var values)
 const parseCorsOrigins = (raw) => {
