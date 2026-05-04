@@ -172,7 +172,7 @@ const MainScreen = ({
       </main>
       <footer className="site-footer">
         <div className="footer-content">
-          <p className="footer-love">Made with ❤️ by Adesa</p>
+          <p className="footer-love">Made with ❤️ by Imma~Nuel</p>
           <p className="footer-year">&copy; {new Date().getFullYear()}</p>
           <p className="footer-message">
             Every moment with you is a treasure 💫
