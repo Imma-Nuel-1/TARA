@@ -148,9 +148,9 @@ function BirthdayIntro({ onComplete }) {
     if (!layer) return undefined;
 
     const narrow = window.innerWidth < 768;
-    const initialCount = narrow ? 30 : 120;
-    const spawnInterval = narrow ? 220 : 55;
-    const maxChildren = narrow ? 120 : 520;
+    const initialCount = narrow ? 100 : 120;
+    const spawnInterval = narrow ? 70 : 55;
+    const maxChildren = narrow ? 380 : 520;
 
     function spawnLetter() {
       const letter = document.createElement("span");

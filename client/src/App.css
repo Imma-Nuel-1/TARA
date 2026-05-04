@@ -3292,9 +3292,9 @@ body {
     overflow-x: hidden;
   }
 
-  /* make rain lighter on phones so header isn't jampacked */
+  /* make rain brighter on phones */
   .intro-rain-layer {
-    opacity: 0.28;
+    opacity: 0.92;
     pointer-events: none;
   }
 
@@ -3304,6 +3304,8 @@ body {
     top: -8vh !important;
     opacity: 0.95 !important;
     transform-origin: center;
+    text-shadow: 0 0 1px rgba(255, 255, 255, 0.55) !important;
+    -webkit-text-stroke: 0.35px rgba(255, 255, 255, 0.3) !important;
   }
 
   /* ensure media and iframes scale within layout */
