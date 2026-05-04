@@ -32,6 +32,7 @@ const ContributeSection = ({ onContributionSaved }) => {
 
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState("");
+  const [cameraError, setCameraError] = useState(null); // for retry UI
   const [loading, setLoading] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -108,29 +109,70 @@ const ContributeSection = ({ onContributionSaved }) => {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setStatus('Requesting camera access...');
+      
+      // Try with mobile-optimized constraints first
+      let stream;
+      const constraints = {
+        video: {
+          facingMode: 'user',
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+        },
+        audio: true,
+      };
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        // Fallback to basic constraints if mobile-specific fails
+        console.warn('Mobile constraints failed, trying basic constraints:', err);
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      }
+
       mediaStreamRef.current = stream;
-      previewVideoRef.current.srcObject = stream;
-      previewVideoRef.current.play().catch(() => {});
+      
+      // Ensure video element is properly configured for mobile
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+        previewVideoRef.current.muted = true;
+        previewVideoRef.current.playsInline = true;
+        previewVideoRef.current.setAttribute('playsinline', 'true');
+        previewVideoRef.current.play().catch((e) => {
+          console.error('Play failed:', e);
+        });
+      }
 
       recordedChunksRef.current = [];
-      const options = { mimeType: 'video/webm;codecs=vp9' };
+      
+      // Try VP9 first, fallback to VP8 for better compatibility
+      let options = { mimeType: 'video/webm;codecs=vp9' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm;codecs=vp8' };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm' };
+      }
+
       const mr = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mr;
+      
       mr.ondataavailable = (ev) => {
         if (ev.data && ev.data.size > 0) recordedChunksRef.current.push(ev.data);
       };
+      
       mr.onstop = async () => {
         const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         const reader = new FileReader();
         reader.onload = () => {
-          // show playback of recorded video
           try {
             if (previewVideoRef.current) {
               try { previewVideoRef.current.srcObject = null; } catch {
                 // ignore clearing srcObject failures
               }
               previewVideoRef.current.src = reader.result;
+              previewVideoRef.current.muted = true;
+              previewVideoRef.current.playsInline = true;
               previewVideoRef.current.play().catch(() => {});
             }
           } catch {
@@ -139,6 +181,7 @@ const ContributeSection = ({ onContributionSaved }) => {
 
           setRecordedVideo({ fileData: reader.result, fileName: `wish-${Date.now()}.webm`, mediaType: 'video' });
           setErrors((prev) => ({ ...prev, content: false }));
+          setStatus('');
         };
         reader.readAsDataURL(blob);
         // stop tracks
@@ -147,13 +190,28 @@ const ContributeSection = ({ onContributionSaved }) => {
           mediaStreamRef.current = null;
         }
       };
+      
       mr.start();
       setIsRecording(true);
+      setCameraError(null); // clear any previous error
       setRecordingSeconds(0);
+      setStatus('Recording started...');
       if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
       recordingIntervalRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
     } catch (err) {
-      setStatus(`Camera error: ${err.message || err}`);
+      console.error('Camera error:', err);
+      let errMsg = 'Camera access denied or unavailable';
+      if (err.name === 'NotAllowedError') {
+        errMsg = 'Camera permission denied. Tap "Retry Camera" below and allow access when prompted.';
+      } else if (err.name === 'NotFoundError') {
+        errMsg = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError') {
+        errMsg = 'Camera is already in use by another app. Close other apps using the camera and try again.';
+      } else if (err.message) {
+        errMsg = `Camera error: ${err.message}`;
+      }
+      setCameraError(errMsg);
+      setStatus(errMsg);
     }
   };
 
@@ -357,6 +415,29 @@ const ContributeSection = ({ onContributionSaved }) => {
                     <span style={{ width: 10, height: 10, borderRadius: 10, background: isRecording ? '#d32f2f' : '#ccc', display: 'inline-block' }} />
                     <span style={{ color: '#666', fontSize: 13 }}>{isRecording ? 'Recording' : 'Ready'}</span>
                   </div>
+                  {cameraError && !isRecording && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCameraError(null);
+                        startRecording();
+                      }}
+                      disabled={loading}
+                      style={{
+                        marginTop: 12,
+                        padding: '8px 16px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: '#ff9800',
+                        color: '#fff',
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Retry Camera
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ flex: 1 }}>
