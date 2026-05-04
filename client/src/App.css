@@ -1046,8 +1046,23 @@ body {
   min-height: 100vh;
 }
 
+/* Ensure main screen children are horizontally centered and constrained
+   so header, nav, content and footer stay visually aligned. */
+#main-screen {
+  align-items: center;
+}
+
 #main-screen .site-hero-banner {
   flex-shrink: 0;
+}
+
+#main-screen .top-nav,
+#main-screen .site-hero-banner,
+#main-screen .content-wrapper,
+#main-screen .site-footer {
+  width: min(980px, 96vw);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 #main-screen .content-wrapper {
@@ -1065,15 +1080,30 @@ body {
   padding: 26px 22px;
   border-radius: 24px;
   background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(255, 240, 245, 0.75)
+  135deg,
+  rgba(255, 255, 255, 0.9),
+  rgba(255, 240, 245, 0.75)
   );
   border: 1px solid rgba(255, 105, 180, 0.25);
   box-shadow: 0 10px 34px rgba(255, 107, 157, 0.15);
   text-align: center;
   position: relative;
   overflow: hidden;
+}
+
+/* Ensure header content is truly centered and stacked */
+.site-hero-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.site-hero-banner .site-eyebrow,
+.site-hero-banner .site-title,
+.site-hero-banner .site-subtitle {
+  text-align: center;
+  width: 100%;
 }
 
 .site-hero-banner::before {
@@ -1096,6 +1126,14 @@ body {
   opacity: 0.6;
   letter-spacing: 8px;
   pointer-events: none;
+}
+
+/* Hide decorative before/after when viewport is narrower to avoid crowding */
+@media (max-width: 1100px) {
+  .site-hero-banner::before,
+  .site-hero-banner::after {
+    display: none;
+  }
 }
 
 .site-eyebrow {
@@ -3196,6 +3234,122 @@ body {
   border-color: #ff6bb5;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
+}
+
+/* Small-screen improvements: phones (<= 767px) */
+@media (max-width: 767px) {
+  .top-nav {
+    padding: 8px 10px;
+    gap: 6px;
+    justify-content: center;
+    overflow-x: auto;
+  }
+
+  .nav-btn {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    border-radius: 20px;
+    gap: 6px;
+    min-width: 48px;
+  }
+
+  /* Simplify nav on small screens: show icons only to save horizontal space */
+  .nav-text {
+    display: none;
+  }
+
+  .nav-icon {
+    font-size: 1.25rem;
+  }
+
+  .site-hero-banner {
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .site-eyebrow {
+    font-size: 0.72rem;
+    margin-bottom: 6px;
+  }
+
+  .site-title {
+    font-size: clamp(1.4rem, 6vw, 2.2rem);
+    line-height: 1.05;
+  }
+
+  .site-subtitle {
+    font-size: 0.9rem;
+    max-width: 92%;
+    margin-top: 6px;
+  }
+
+  .content-wrapper {
+    padding: 10px 8px;
+  }
+
+  .contribute-container,
+  .contribute-form,
+  .contribute-card {
+    padding: 8px !important;
+  }
+
+  /* hide extra decorative emojis that crowd the header on phones */
+  .site-hero-banner::after {
+    display: none;
+  }
+
+  .contribute-tabs {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .contribute-tab {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.9rem;
+    min-width: 120px;
+  }
+
+  .contribute-form {
+    padding: 12px !important;
+    border-radius: 12px;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
+
+  .form-group textarea { min-height: 90px; }
+
+  .contribute-submit-btn {
+    padding: 0.9rem 1rem;
+    font-size: 1rem;
+    border-radius: 10px;
+  }
+
+  /* reduce visual clutter for the contribute card items */
+  .contribute-card { box-shadow: none; border: 1px solid rgba(0,0,0,0.04); }
+
+  .rotate-device-illustration,
+  .intro-glow {
+    display: none !important;
+  }
+
+  .site-footer {
+    font-size: 0.85rem;
+    margin: 14px auto 8px;
+  }
 }
 
 .code-intro-card .code-input::placeholder {

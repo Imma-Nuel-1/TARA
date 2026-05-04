@@ -8,7 +8,7 @@ const NAV_SECTIONS = [
   { id: "love-letter", icon: "❤️", text: "Love Letter" },
   { id: "notes", icon: "📝", text: "Notes" },
   { id: "gallery", icon: "🌷", text: "Gallery" },
-  { id: "contribute", icon: "✨", text: "Contribute" },
+  { id: "contribute", icon: "✨", text: "Share a Memory" },
 ];
 
 const GUEST_NAV_SECTIONS = [
@@ -41,7 +41,7 @@ const MainScreen = ({
   
   const navSections =
     isGuestMode && !guestUnlocked
-      ? [{ id: "contribute", icon: "✨", text: "Contribute" }]
+      ? [{ id: "contribute", icon: "✨", text: "Share a Memory" }]
       : isGuestMode
         ? guestNavSections
         : fullNavSections;

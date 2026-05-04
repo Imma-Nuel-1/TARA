@@ -91,11 +91,16 @@ function App() {
   const [isLandscape, setIsLandscape] = useState(() =>
     window.innerWidth >= window.innerHeight,
   );
+  // Only enforce landscape orientation on tablet+ devices.
+  const [enforceLandscape, setEnforceLandscape] = useState(() =>
+    window.innerWidth >= 768,
+  );
   const { data: content, isLoading, isError, error } = useSiteContent();
 
   useEffect(() => {
     const updateOrientation = () => {
       setIsLandscape(window.innerWidth >= window.innerHeight);
+      setEnforceLandscape(window.innerWidth >= 768);
     };
 
     updateOrientation();
@@ -258,7 +263,7 @@ function App() {
         path="*"
         element={
           <div>
-            {!isLandscape && <RotateDeviceScreen />}
+            {enforceLandscape && !isLandscape && <RotateDeviceScreen />}
             {isLoading ? (
               <main className="app-state">
                 <div className="loading-container">
@@ -292,7 +297,7 @@ function App() {
               onClose={() => setShowPopup(false)}
               title={content?.title}
             />
-            {showIntro && isLandscape && (
+            {showIntro && (!enforceLandscape || isLandscape) && (
               <BirthdayIntro
                 onComplete={() => {
                   setShowIntro(false);
