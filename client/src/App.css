@@ -2678,10 +2678,11 @@ body {
    ============================================ */
 
 .contribute-container {
+.contribute-container {
   max-width: 600px;
   margin: 0 auto;
   padding: 2rem;
-  text-align: center;
+  text-align: left;
 }
 
 .contribute-subtitle {
@@ -3287,6 +3288,32 @@ body {
     padding: 10px 8px;
   }
 
+  /* Prevent horizontal page overflow on small devices */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* make rain lighter on phones so header isn't jampacked */
+  .intro-rain-layer {
+    opacity: 0.28;
+    pointer-events: none;
+  }
+
+  .intro-rain-letter {
+    font-size: 0.9rem !important;
+    line-height: 0.9 !important;
+    top: -8vh !important;
+    opacity: 0.95 !important;
+    transform-origin: center;
+  }
+
+  /* ensure media and iframes scale within layout */
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
   .contribute-container,
   .contribute-form,
   .contribute-card {
@@ -3658,7 +3685,8 @@ body {
   background: #f8f8f8;
   padding: 1rem;
   border-radius: 8px;
-  overflow-x: auto;
+  box-shadow: var(--shadow);
+  text-align: left;
   font-size: 0.85rem;
   color: #c62828;
 }

@@ -309,10 +309,10 @@ const ContributeSection = ({ onContributionSaved }) => {
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="avatar">Profile Image</label>
-            <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} disabled={loading} className={errors.avatar ? 'input-error' : ''} required />
-          </div>
+            <div className="form-group">
+              <label htmlFor="avatar">Profile Image</label>
+              <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} className={errors.avatar ? 'input-error' : ''} required />
+            </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="contribute-card" style={{ padding: 12, borderRadius: 8, border: '1px solid #e6e6e6' }}>
@@ -383,7 +383,7 @@ const ContributeSection = ({ onContributionSaved }) => {
               </div>
               <div className="form-group">
                 <label>Memories Upload</label>
-                <input type="file" accept="image/*,video/*" multiple onChange={handleFileChange} disabled={loading} />
+                <input type="file" accept="image/*,video/*" multiple onChange={handleFileChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} />
               </div>
 
               {errors.memories && <div className="form-error">Please add at least one memory upload.</div>}

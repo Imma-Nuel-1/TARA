@@ -147,10 +147,14 @@ function BirthdayIntro({ onComplete }) {
     const layer = rainLayerRef.current;
     if (!layer) return undefined;
 
+    const narrow = window.innerWidth < 768;
+    const initialCount = narrow ? 30 : 120;
+    const spawnInterval = narrow ? 220 : 55;
+    const maxChildren = narrow ? 120 : 520;
+
     function spawnLetter() {
       const letter = document.createElement("span");
-      const phrase =
-        RAIN_PHRASES[Math.floor(Math.random() * RAIN_PHRASES.length)];
+      const phrase = RAIN_PHRASES[Math.floor(Math.random() * RAIN_PHRASES.length)];
       const hue = Math.floor(Math.random() * 360);
       const duration = (2.2 + Math.random() * 2.2).toFixed(2);
       const drift = (-6 + Math.random() * 12).toFixed(1);
@@ -169,16 +173,16 @@ function BirthdayIntro({ onComplete }) {
       letter.addEventListener("animationend", () => letter.remove());
 
       layer.appendChild(letter);
-      if (layer.childElementCount > 520) {
+      if (layer.childElementCount > maxChildren) {
         layer.firstElementChild?.remove();
       }
     }
 
-    for (let i = 0; i < 120; i += 1) {
-      setTimeout(spawnLetter, i * 16);
+    for (let i = 0; i < initialCount; i += 1) {
+      setTimeout(spawnLetter, i * (narrow ? 40 : 16));
     }
 
-    const rain = setInterval(spawnLetter, 55);
+    const rain = setInterval(spawnLetter, spawnInterval);
 
     return () => {
       clearInterval(rain);
