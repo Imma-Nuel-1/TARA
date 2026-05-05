@@ -12,6 +12,15 @@ if (fs.existsSync(selectedEnvPath)) {
   dotenv.config();
 }
 
+const fallbackEnvPath = path.resolve(process.cwd(), ".env");
+const fallbackEnv = fs.existsSync(fallbackEnvPath)
+  ? dotenv.parse(fs.readFileSync(fallbackEnvPath))
+  : {};
+
+const pickEnvValue = (currentValue, fallbackValue = "") => {
+  return currentValue && currentValue.trim() ? currentValue : fallbackValue;
+};
+
 // Normalize and parse CORS origins (supports comma-separated env var values)
 const parseCorsOrigins = (raw) => {
   const fallback = ["https://tara-lime.vercel.app", "http://localhost:5173"];
@@ -35,7 +44,7 @@ export const env = {
   adminUsername: process.env.ADMIN_USERNAME || "adesa",
   adminPassword: process.env.ADMIN_PASSWORD || "Adesa@26022002",
   corsOrigin: parseCorsOrigins(process.env.CORS_ORIGIN),
-  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
-  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
-  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
+  cloudinaryCloudName: pickEnvValue(process.env.CLOUDINARY_CLOUD_NAME, fallbackEnv.CLOUDINARY_CLOUD_NAME),
+  cloudinaryApiKey: pickEnvValue(process.env.CLOUDINARY_API_KEY, fallbackEnv.CLOUDINARY_API_KEY),
+  cloudinaryApiSecret: pickEnvValue(process.env.CLOUDINARY_API_SECRET, fallbackEnv.CLOUDINARY_API_SECRET),
 };

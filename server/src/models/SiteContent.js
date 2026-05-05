@@ -36,6 +36,15 @@ const GalleryItemSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const AdminMessageSchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true },
+    imageUrl: { type: String, default: null },
+    imageMediaType: { type: String, enum: ["image", "video"], default: "image" },
+  },
+  { _id: false, timestamps: true },
+);
+
 const SiteContentSchema = new mongoose.Schema(
   {
     singleton: { type: String, required: true, unique: true, default: "main" },
@@ -45,6 +54,7 @@ const SiteContentSchema = new mongoose.Schema(
     playlist: { type: [PlaylistItemSchema], default: [] },
     notes: { type: [NoteSchema], default: [] },
     gallery: { type: [GalleryItemSchema], default: [] },
+    adminMessage: { type: AdminMessageSchema, default: null },
   },
   { timestamps: true },
 );

@@ -144,3 +144,48 @@ export async function updateAdminContent(req, res) {
 
   return res.json(updated);
 }
+
+export async function saveAdminMessage(req, res) {
+  try {
+    const { text, imageUrl, imageMediaType } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: "Message text is required" });
+    }
+
+    const adminMessage = {
+      text: text.trim(),
+      imageUrl: imageUrl || null,
+      imageMediaType: imageMediaType || "image",
+    };
+
+    const updated = await SiteContent.findOneAndUpdate(
+      { singleton: "main" },
+      { adminMessage },
+      { new: true },
+    );
+
+    return res.json({
+      message: "Your message has been pinned!",
+      adminMessage: updated.adminMessage,
+    });
+  } catch (err) {
+    console.error("Failed to save admin message:", err);
+    return res.status(500).json({ message: "Failed to save admin message" });
+  }
+}
+
+export async function deleteAdminMessage(req, res) {
+  try {
+    const updated = await SiteContent.findOneAndUpdate(
+      { singleton: "main" },
+      { adminMessage: null },
+      { new: true },
+    );
+
+    return res.json({ message: "Your message has been unpinned" });
+  } catch (err) {
+    console.error("Failed to delete admin message:", err);
+    return res.status(500).json({ message: "Failed to delete admin message" });
+  }
+}

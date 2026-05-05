@@ -100,7 +100,7 @@ const MainScreen = ({
         <p className="site-subtitle">
           {isGuestMode
             ? guestUnlocked
-              ? "You can now view everyone's messages and uploads, including yours."
+              ? "View your own message and memories."
               : guestStep === "message"
                 ? "Step 1 of 2: Submit your message first to continue."
                 : "Step 2 of 2: Upload at least one photo or video to unlock the full gallery and messages."
@@ -128,11 +128,12 @@ const MainScreen = ({
           guestUnlocked ? (
             <NotesSection
               notes={notes}
-              title={isGuestMode ? "All Messages" : "Messages From Friends"}
-              emptyText={isGuestMode ? "No messages yet" : "No messages yet"}
+              adminMessage={isGuestMode ? null : content?.adminMessage}
+              title={isGuestMode ? "My Message" : "Messages From Friends"}
+              emptyText={isGuestMode ? "No message yet" : "No messages yet"}
               emptyHint={
                 isGuestMode
-                  ? "All birthday messages, including yours, will appear here"
+                  ? "Your birthday message will appear here"
                   : "Birthday wishes from friends will appear here"
               }
             />
@@ -148,11 +149,11 @@ const MainScreen = ({
             <GallerySection
               gallery={gallery}
               musicRef={musicRef}
-              title={isGuestMode ? "All Gallery" : "Our Memories"}
-              emptyText={isGuestMode ? "No photos yet" : "No photos in the gallery yet"}
+              title={isGuestMode ? "My Gallery" : "Our Memories"}
+              emptyText={isGuestMode ? "No uploads yet" : "No photos in the gallery yet"}
               emptyHint={
                 isGuestMode
-                  ? "All shared photos and videos, including yours, will appear here"
+                  ? "Your shared photos and videos will appear here"
                   : "Beautiful memories will be displayed here soon"
               }
             />

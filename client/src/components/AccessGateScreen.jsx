@@ -8,7 +8,7 @@ const AccessGateScreen = ({
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   // Support multiple valid codes
-  const validCodes = ["010522", "180904"];
+  const validCodes = ["010522"];
 
   const handleYes = () => {
     setStep("code");
