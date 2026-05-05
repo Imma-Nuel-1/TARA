@@ -202,7 +202,7 @@ const ContributeSection = ({ onContributionSaved }) => {
       console.error('Camera error:', err);
       let errMsg = 'Camera access denied or unavailable';
       if (err.name === 'NotAllowedError') {
-        errMsg = 'Camera permission denied. Tap "Retry Camera" below and allow access when prompted.';
+        errMsg = 'Camera permission blocked. Try: (1) Close this browser tab and reopen in a new tab, (2) Or try in incognito/private mode, (3) If still blocked, go to browser settings. Then tap "Retry Camera".';
       } else if (err.name === 'NotFoundError') {
         errMsg = 'No camera found on this device.';
       } else if (err.name === 'NotReadableError') {
