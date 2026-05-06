@@ -185,7 +185,15 @@ function App() {
     audio.preload = "auto";
     audio.currentTime = 10;
 
-    await audio.play();
+    try {
+      await audio.play();
+    } catch (err) {
+      // AbortError can occur when interrupting or changing sources
+      // This is not a critical error, just log and continue
+      if (err.name !== 'AbortError') {
+        console.warn('Music playback warning:', err.message);
+      }
+    }
   };
 
 

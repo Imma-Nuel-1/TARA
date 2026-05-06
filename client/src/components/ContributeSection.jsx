@@ -138,9 +138,16 @@ const ContributeSection = ({ onContributionSaved }) => {
         previewVideoRef.current.muted = true;
         previewVideoRef.current.playsInline = true;
         previewVideoRef.current.setAttribute('playsinline', 'true');
-        previewVideoRef.current.play().catch((e) => {
-          console.error('Play failed:', e);
-        });
+        // Add a small delay to ensure stream is ready
+        setTimeout(() => {
+          if (previewVideoRef.current?.srcObject === stream) {
+            previewVideoRef.current.play().catch((e) => {
+              if (e.name !== 'AbortError') {
+                console.warn('Video play warning:', e.name);
+              }
+            });
+          }
+        }, 100);
       }
 
       recordedChunksRef.current = [];
@@ -167,13 +174,23 @@ const ContributeSection = ({ onContributionSaved }) => {
         reader.onload = () => {
           try {
             if (previewVideoRef.current) {
-              try { previewVideoRef.current.srcObject = null; } catch {
+              try { 
+                if (previewVideoRef.current.srcObject) {
+                  previewVideoRef.current.srcObject.getTracks().forEach(t => t.stop());
+                }
+                previewVideoRef.current.srcObject = null; 
+              } catch {
                 // ignore clearing srcObject failures
               }
               previewVideoRef.current.src = reader.result;
               previewVideoRef.current.muted = true;
               previewVideoRef.current.playsInline = true;
-              previewVideoRef.current.play().catch(() => {});
+              // Delay playback to ensure src is loaded
+              setTimeout(() => {
+                if (previewVideoRef.current?.src === reader.result) {
+                  previewVideoRef.current.play().catch(() => {});
+                }
+              }, 100);
             }
           } catch {
             // ignore playback errors in preview mode

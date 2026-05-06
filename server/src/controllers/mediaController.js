@@ -73,6 +73,19 @@ export async function uploadMedia(req, res) {
     return res.status(400).json({ message: "No file provided" });
   }
 
+  // Check Cloudinary config before attempting upload
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    console.error("Cloudinary not configured:", {
+      cloudName: !!process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: !!process.env.CLOUDINARY_API_KEY,
+      apiSecret: !!process.env.CLOUDINARY_API_SECRET,
+    });
+    return res.status(500).json({ 
+      message: "Upload service not configured",
+      error: "Cloudinary credentials missing" 
+    });
+  }
+
   try {
     const parsedFile = parseDataUrl(file);
     if (!parsedFile) {
@@ -95,7 +108,11 @@ export async function uploadMedia(req, res) {
 
     return res.json({ url: result.secure_url, info: result });
   } catch (err) {
-    console.error("Cloudinary upload failed", err?.message || err);
+    console.error("Cloudinary upload failed:", {
+      message: err?.message,
+      statusCode: err?.status,
+      errorCode: err?.error?.error_code,
+    });
     return res.status(500).json({
       message: "Upload failed",
       error: err?.message || "Unknown error",
