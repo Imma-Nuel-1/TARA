@@ -19,12 +19,71 @@ const GallerySection = ({
   const musicWasPlayingRef = useRef(false);
   const pausedByVideoRef = useRef(false);
   const scrollYRef = useRef(0);
+  const prevLightboxIndexRef = useRef(lightboxIndex);
 
   const visibleItems = useMemo(
     () => gallery.slice(0, visibleCount),
     [gallery, visibleCount],
   );
   const hasMore = visibleCount < gallery.length;
+
+  const handleOpenLightbox = (index) => {
+    const nextItem = visibleItems[index];
+    const music = musicRef?.current;
+
+    // DEBUG: verify music ref and item type
+    console.debug('[Gallery] open', { index, nextItem, isVideo: isVideoItem(nextItem), musicDefined: Boolean(music), musicPaused: music ? music.paused : null });
+
+    if (music && isVideoItem(nextItem)) {
+      musicWasPlayingRef.current = !music.paused;
+      pausedByVideoRef.current = true;
+      if (!music.paused) {
+        music.pause();
+      }
+    }
+
+    setLightboxIndex(index);
+  };
+
+  const handleCloseLightbox = () => {
+    const music = musicRef?.current;
+
+    console.debug('[Gallery] close', { pausedByVideo: pausedByVideoRef.current, wasPlaying: musicWasPlayingRef.current, musicDefined: Boolean(music) });
+
+    if (music && pausedByVideoRef.current) {
+      if (musicWasPlayingRef.current) {
+        music.play().catch(() => {});
+      }
+      musicWasPlayingRef.current = false;
+      pausedByVideoRef.current = false;
+    }
+
+    setLightboxIndex(-1);
+  };
+
+  const onLightboxVideoPlay = () => {
+    const music = musicRef?.current;
+    if (!music) return;
+    // Don't overwrite the original "was playing" flag set when opening the lightbox.
+    // Only pause the music if it's currently playing and mark that we paused it.
+    if (!music.paused) {
+      musicWasPlayingRef.current = true;
+      pausedByVideoRef.current = true;
+      music.pause();
+    } else {
+      pausedByVideoRef.current = true;
+    }
+  };
+
+  const onLightboxVideoPauseOrEnded = () => {
+    const music = musicRef?.current;
+    if (!music) return;
+    if (pausedByVideoRef.current && musicWasPlayingRef.current) {
+      music.play().catch(() => {});
+    }
+    musicWasPlayingRef.current = false;
+    pausedByVideoRef.current = false;
+  };
 
   // Hide navbar when lightbox is open
   useEffect(() => {
@@ -72,30 +131,52 @@ const GallerySection = ({
     const music = musicRef?.current;
     if (!music) return;
 
-    const activeItem = lightboxIndex >= 0 ? visibleItems[lightboxIndex] : null;
-    const showingVideo = Boolean(activeItem && isVideoItem(activeItem));
-
-    if (showingVideo) {
-      if (!pausedByVideoRef.current) {
-        musicWasPlayingRef.current = !music.paused;
-      }
-
-      if (musicWasPlayingRef.current && !music.paused) {
-        music.pause();
-      }
-
-      pausedByVideoRef.current = true;
-      return;
-    }
-
-    if (pausedByVideoRef.current) {
-      pausedByVideoRef.current = false;
+    if (lightboxIndex < 0 && pausedByVideoRef.current) {
       if (musicWasPlayingRef.current) {
         music.play().catch(() => {});
       }
       musicWasPlayingRef.current = false;
+      pausedByVideoRef.current = false;
     }
   }, [lightboxIndex, musicRef, visibleItems]);
+
+  // Handle switching between items inside the lightbox: if we move away from a video
+  // to a non-video item, resume background music if we paused it; if we move into a video,
+  // pause background music.
+  useEffect(() => {
+    const prevIndex = prevLightboxIndexRef.current;
+    if (prevIndex === lightboxIndex) return;
+
+    const prevItem = prevIndex >= 0 ? visibleItems[prevIndex] : null;
+    const currItem = lightboxIndex >= 0 ? visibleItems[lightboxIndex] : null;
+    const music = musicRef?.current;
+
+    // switched away from video to non-video while still in lightbox
+    if (prevItem && isVideoItem(prevItem) && !(currItem && isVideoItem(currItem))) {
+      if (music && pausedByVideoRef.current) {
+        if (musicWasPlayingRef.current) {
+          music.play().catch(() => {});
+        }
+        musicWasPlayingRef.current = false;
+        pausedByVideoRef.current = false;
+      }
+    }
+
+    // switched into a video from a non-video while still in lightbox
+    if (currItem && isVideoItem(currItem) && !(prevItem && isVideoItem(prevItem))) {
+      if (music) {
+        if (!music.paused) {
+          musicWasPlayingRef.current = true;
+          pausedByVideoRef.current = true;
+          music.pause();
+        } else {
+          pausedByVideoRef.current = true;
+        }
+      }
+    }
+
+    prevLightboxIndexRef.current = lightboxIndex;
+  }, [lightboxIndex, visibleItems, musicRef]);
 
   if (!gallery || gallery.length === 0) {
     return (
@@ -122,11 +203,11 @@ const GallerySection = ({
             <div
               key={`${item.caption}-${index}`}
               className="gallery-item"
-              onClick={() => setLightboxIndex(index)}
+              onClick={() => handleOpenLightbox(index)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === "Enter") setLightboxIndex(index);
+                if (e.key === "Enter") handleOpenLightbox(index);
               }}
             >
               {isVideoItem(item) ? (
@@ -157,7 +238,7 @@ const GallerySection = ({
           createPortal(
             <div
               className="lightbox-modal show"
-              onClick={() => setLightboxIndex(-1)}
+              onClick={handleCloseLightbox}
             >
               <div
                 className="lightbox-content"
@@ -166,7 +247,7 @@ const GallerySection = ({
                 <button
                   type="button"
                   className="lightbox-close"
-                  onClick={() => setLightboxIndex(-1)}
+                  onClick={handleCloseLightbox}
                 >
                   x
                 </button>
@@ -189,6 +270,9 @@ const GallerySection = ({
                     controls
                     playsInline
                     autoPlay
+                    onPlay={onLightboxVideoPlay}
+                    onPause={onLightboxVideoPauseOrEnded}
+                    onEnded={onLightboxVideoPauseOrEnded}
                   />
                 ) : (
                   <img
