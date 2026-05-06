@@ -42,6 +42,8 @@ const ContributeSection = ({ onContributionSaved }) => {
   const recordedChunksRef = useRef([]);
   const mediaStreamRef = useRef(null);
   const previewVideoRef = useRef(null);
+  const avatarInputRef = useRef(null);
+  const mediaInputRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -267,17 +269,27 @@ const ContributeSection = ({ onContributionSaved }) => {
     setStatus('Submitting...');
 
     try {
-      let avatarUrl = '';
-      if (form.avatarFileData) {
-        setStatus('Uploading profile image...');
-        avatarUrl = await uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`);
-      }
+      setStatus('Uploading media...');
 
-      let recordedVideoUrl = '';
-      if (recordedVideo) {
-        setStatus('Uploading recorded video...');
-        recordedVideoUrl = await uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`);
-      }
+      const avatarUploadPromise = form.avatarFileData
+        ? uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`)
+        : Promise.resolve('');
+
+      const recordedVideoUploadPromise = recordedVideo
+        ? uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`)
+        : Promise.resolve('');
+
+      const mediaUploadPromises = form.mediaFiles.map(async (mf) => ({
+        url: await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`),
+        caption: form.caption,
+        mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData),
+      }));
+
+      const [avatarUrl, recordedVideoUrl, uploadedMedia] = await Promise.all([
+        avatarUploadPromise,
+        recordedVideoUploadPromise,
+        Promise.all(mediaUploadPromises),
+      ]);
 
       if (recordedVideoUrl) {
         setStatus('Saving recorded video to gallery...');
@@ -298,15 +310,6 @@ const ContributeSection = ({ onContributionSaved }) => {
           type: 'image',
           galleryItem: { imageUrl: recordedVideoUrl, caption: recordedCaption, mediaType: 'video' },
         });
-      }
-
-      // Upload media files first
-      const uploadedMedia = [];
-      for (let i = 0; i < form.mediaFiles.length; i++) {
-        const mf = form.mediaFiles[i];
-        setStatus(`Uploading media ${i + 1} of ${form.mediaFiles.length}...`);
-        const url = await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`);
-        uploadedMedia.push({ url, caption: form.caption, mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData) });
       }
 
       // Create message content or a video-backed message
@@ -351,6 +354,8 @@ const ContributeSection = ({ onContributionSaved }) => {
       setForm({ name: '', role: 'Friend', otherRole: '', message: '', caption: '', avatarFileData: null, avatarFileName: '', mediaFiles: [] });
       setRecordedVideo(null);
       setErrors({});
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+      if (mediaInputRef.current) mediaInputRef.current.value = '';
     } catch (err) {
       setStatus(`Failed: ${err.message || 'Connection error'}`);
     }
@@ -386,7 +391,7 @@ const ContributeSection = ({ onContributionSaved }) => {
 
             <div className="form-group">
               <label htmlFor="avatar">Profile Image</label>
-              <input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} className={errors.avatar ? 'input-error' : ''} required />
+              <input ref={avatarInputRef} id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} className={errors.avatar ? 'input-error' : ''} required />
             </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -481,7 +486,7 @@ const ContributeSection = ({ onContributionSaved }) => {
               </div>
               <div className="form-group">
                 <label>Memories Upload</label>
-                <input type="file" accept="image/*,video/*" multiple onChange={handleFileChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} />
+                <input ref={mediaInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileChange} onClick={(e) => { e.target.value = ''; }} disabled={loading} />
               </div>
 
               {errors.memories && <div className="form-error">Please add at least one memory upload.</div>}

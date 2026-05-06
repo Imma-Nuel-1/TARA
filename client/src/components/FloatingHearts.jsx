@@ -12,7 +12,7 @@ const FloatingHearts = () => {
       const item = {
         id,
         emoji: pool[Math.floor(Math.random() * pool.length)],
-        left: `${Math.random() * 100}%`,
+        left: `${5 + Math.random() * 90}%`,
         duration: `${6 + Math.random() * 6}s`,
         size: `${1 + Math.random() * 1.2}rem`,
       };
