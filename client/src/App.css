@@ -302,6 +302,7 @@ body {
   height: 100%;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   overflow-x: hidden;
+  max-width: 100%;
   background: linear-gradient(
     135deg,
     #ffb6c1 0%,
@@ -316,6 +317,13 @@ body {
 
 body {
   position: relative;
+  overscroll-behavior-x: none;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /*
@@ -3402,6 +3410,46 @@ body {
 
   /* reduce visual clutter for the contribute card items */
   .contribute-card { box-shadow: none; border: 1px solid rgba(0,0,0,0.04); }
+
+  .access-gate-panel,
+  .secret-code-card,
+  .rotate-card {
+    width: min(94vw, 560px);
+    padding: 22px 16px;
+  }
+
+  .gate-points {
+    gap: 8px;
+  }
+
+  .gate-points span {
+    font-size: 0.78rem;
+    padding: 7px 10px;
+  }
+
+  .access-choice-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gate-choice-btn {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .access-code-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .access-code-input {
+    letter-spacing: 3px;
+    font-size: 1rem;
+  }
+
+  .access-code-group .btn-enter {
+    width: 100%;
+  }
 
   .rotate-device-illustration,
   .intro-glow {
