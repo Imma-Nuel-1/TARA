@@ -252,23 +252,44 @@ const ContributeSection = ({ onContributionSaved }) => {
   };
 
   const uploadFile = async (fileData, fileName, fileObj) => {
+    const timeoutMs = fileObj
+      ? fileObj.size > 300 * 1024 * 1024
+        ? 15 * 60 * 1000
+        : fileObj.size > 100 * 1024 * 1024
+          ? 10 * 60 * 1000
+          : 4 * 60 * 1000
+      : 4 * 60 * 1000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     let res;
-    // Send file objects to the server so it can stream/chunk large uploads to Cloudinary.
-    if (fileObj) {
-      const formData = new FormData();
-      formData.append('file', fileObj, fileName);
-      formData.append('filename', fileName);
-      res = await fetch(`${API_BASE}/api/media/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-    } else {
-      res = await fetch(`${API_BASE}/api/media/upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: fileData, filename: fileName }),
-      });
+    try {
+      // Send file objects to the server so it can stream/chunk large uploads to Cloudinary.
+      if (fileObj) {
+        const formData = new FormData();
+        formData.append('file', fileObj, fileName);
+        formData.append('filename', fileName);
+        res = await fetch(`${API_BASE}/api/media/upload`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+      } else {
+        res = await fetch(`${API_BASE}/api/media/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: fileData, filename: fileName }),
+          signal: controller.signal,
+        });
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error(`Upload timed out for ${fileName || 'file'}. Please retry this file alone.`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
+
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(json.error || json.message || `Upload failed (${res.status})`);
@@ -289,27 +310,39 @@ const ContributeSection = ({ onContributionSaved }) => {
     setStatus('Submitting...');
 
     try {
-      setStatus('Uploading media...');
+      let avatarUrl = '';
+      let recordedVideoUrl = '';
+      const uploadedMedia = [];
 
-      const avatarUploadPromise = form.avatarFileData
-        ? uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`, form.avatarFileObj)
-        : Promise.resolve('');
+      if (form.avatarFileData) {
+        setStatus('Uploading profile image...');
+        avatarUrl = await uploadFile(
+          form.avatarFileData,
+          form.avatarFileName || `avatar-${Date.now()}`,
+          form.avatarFileObj,
+        );
+      }
 
-      const recordedVideoUploadPromise = recordedVideo
-        ? uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`, recordedVideo.fileObj)
-        : Promise.resolve('');
+      if (recordedVideo) {
+        setStatus('Uploading recorded video...');
+        recordedVideoUrl = await uploadFile(
+          recordedVideo.fileData,
+          recordedVideo.fileName || `video-${Date.now()}.webm`,
+          recordedVideo.fileObj,
+        );
+      }
 
-      const mediaUploadPromises = form.mediaFiles.map(async (mf) => ({
-        url: await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`, mf.fileObj),
-        caption: form.caption,
-        mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData),
-      }));
-
-      const [avatarUrl, recordedVideoUrl, uploadedMedia] = await Promise.all([
-        avatarUploadPromise,
-        recordedVideoUploadPromise,
-        Promise.all(mediaUploadPromises),
-      ]);
+      for (let i = 0; i < form.mediaFiles.length; i++) {
+        const mf = form.mediaFiles[i];
+        const currentName = mf.fileName || `media-${i + 1}`;
+        setStatus(`Uploading memory ${i + 1}/${form.mediaFiles.length}: ${currentName}`);
+        uploadedMedia.push({
+          url: await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`, mf.fileObj),
+          caption: form.caption,
+          mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData),
+          fileName: mf.fileName || currentName,
+        });
+      }
 
       if (recordedVideoUrl) {
         setStatus('Saving recorded video to gallery...');
