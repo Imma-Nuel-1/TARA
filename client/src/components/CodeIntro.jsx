@@ -97,6 +97,7 @@ const CodeIntro = ({ onComplete, onStartMusic }) => {
       })
       .catch(() => {
         setMusicError("Playback was blocked by the browser.");
+        onComplete?.();
       });
   };
 
@@ -190,6 +191,15 @@ const CodeIntro = ({ onComplete, onStartMusic }) => {
               >
                 ▶ Play music and enter
               </button>
+              {musicError && (
+                <button
+                  type="button"
+                  className="code-music-play-btn"
+                  onClick={() => onComplete?.()}
+                >
+                  Continue without music
+                </button>
+              )}
             </div>
 
             {musicError && <p className="error-message gate-error-message">{musicError}</p>}

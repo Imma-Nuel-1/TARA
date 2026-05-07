@@ -23,7 +23,7 @@ app.use(
     credentials: false,
   }),
 );
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({ limit: "2gb" }));
 app.use(morgan("dev"));
 app.use("/legacy/images", express.static(path.join(workspaceRoot, "images")));
 app.use("/legacy/music", express.static(path.join(workspaceRoot, "music")));
@@ -44,9 +44,18 @@ app.use("/api/admin/media", mediaRoutes);
 app.use("/api/media", publicMediaRoutes);
 
 app.use((err, req, res, next) => {
-  // Keep response generic in production and log details server-side.
   console.error(err);
-  res.status(500).json({ message: "Internal server error" });
+  const status = err?.status || err?.statusCode || 500;
+  if (err?.type === "entity.too.large" || status === 413) {
+    return res.status(413).json({
+      message: "Upload payload is too large",
+      error: "Reduce file size or use chunked upload for very large files",
+    });
+  }
+
+  return res.status(status).json({
+    message: err?.message || "Internal server error",
+  });
 });
 
 export default app;

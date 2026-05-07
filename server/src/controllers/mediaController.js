@@ -1,5 +1,6 @@
 import cloudinary from "../config/cloudinary.js";
 import { Readable } from "node:stream";
+import { unlink } from "node:fs/promises";
 
 function parseDataUrl(dataUrl) {
   const match = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl || "");
@@ -34,8 +35,9 @@ function buildPublicId(filename) {
 
   const safeName = baseName
     .replace(/\s+/g, "_")
-    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
     .replace(/_+/g, "_")
+    .replace(/-+/g, "-")
     .replace(/^_+|_+$/g, "");
 
   return safeName || undefined;
@@ -65,11 +67,36 @@ export async function createUploadSignature(req, res) {
   });
 }
 
-export async function uploadMedia(req, res) {
-  // Expecting JSON body: { file: "data:<mime>;base64,...", filename?: string }
-  const { file, filename } = req.body || {};
+export async function createPublicUploadSignature(req, res) {
+  const timestamp = Math.round(Date.now() / 1000);
 
-  if (!file) {
+  if (!process.env.CLOUDINARY_API_SECRET) {
+    return res.status(500).json({ message: "Cloudinary is not configured" });
+  }
+
+  const signature = cloudinary.utils.api_sign_request(
+    {
+      timestamp,
+      folder: "tara/contributions",
+    },
+    process.env.CLOUDINARY_API_SECRET,
+  );
+
+  return res.json({
+    timestamp,
+    signature,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    folder: "tara/contributions",
+  });
+}
+
+export async function uploadMedia(req, res) {
+  const body = req.body || {};
+  const fileDataUrl = body.file;
+  const filename = body.filename || req.file?.originalname;
+
+  if (!fileDataUrl && !req.file) {
     return res.status(400).json({ message: "No file provided" });
   }
 
@@ -87,35 +114,80 @@ export async function uploadMedia(req, res) {
   }
 
   try {
-    const parsedFile = parseDataUrl(file);
-    if (!parsedFile) {
-      return res.status(400).json({ message: "Invalid file format" });
+    let resourceType = "image";
+    let folderPath = "tara/contributions/images";
+    let result;
+    const publicId = buildPublicId(filename);
+    const uniquePublicId = publicId ? `${publicId}-${Date.now()}` : undefined;
+
+    if (req.file?.path) {
+      const mimeType = req.file.mimetype || "application/octet-stream";
+      const sizeMB = (req.file.size / (1024 * 1024)).toFixed(2);
+      resourceType = mimeType.startsWith("video/") ? "video" : "image";
+      folderPath = resourceType === "video"
+        ? "tara/contributions/videos"
+        : "tara/contributions/images";
+      const uploadOptions = {
+        folder: folderPath,
+        resource_type: resourceType,
+        public_id: uniquePublicId,
+        timeout: 10 * 60 * 1000,
+      };
+
+      console.log(`[Upload] Multipart upload: ${filename || "unnamed"}, size: ${sizeMB}MB, mime: ${mimeType}`);
+
+      // For large files, use Cloudinary chunked upload helper.
+      if (req.file.size > 100 * 1024 * 1024) {
+        console.log(`[Upload] Using chunked upload for large file: ${filename || "unnamed"}`);
+        result = await cloudinary.uploader.upload_large(req.file.path, {
+          ...uploadOptions,
+          chunk_size: 6 * 1024 * 1024,
+        });
+      } else {
+        console.log(`[Upload] Using regular upload: ${filename || "unnamed"}`);
+        result = await cloudinary.uploader.upload(req.file.path, {
+          ...uploadOptions,
+        });
+      }
+    } else {
+      const parsedFile = parseDataUrl(fileDataUrl);
+      if (!parsedFile) {
+        return res.status(400).json({ message: "Invalid file format" });
+      }
+
+      const bufferSizeMB = (parsedFile.buffer.length / (1024 * 1024)).toFixed(2);
+      resourceType = parsedFile.mimeType.startsWith("video/") ? "video" : "image";
+      folderPath = resourceType === "video"
+        ? "tara/contributions/videos"
+        : "tara/contributions/images";
+
+      console.log(`[Upload] Data URL upload: ${filename || "unnamed"}, size: ${bufferSizeMB}MB, mime: ${parsedFile.mimeType}`);
+
+      result = await uploadBuffer(parsedFile.buffer, {
+        folder: folderPath,
+        resource_type: resourceType,
+        public_id: uniquePublicId,
+      });
     }
 
-    const resourceType = parsedFile.mimeType.startsWith("video/") ? "video" : "image";
-    const publicId = buildPublicId(filename);
-    
-    // Organize uploads into folders by type
-    const folderPath = resourceType === "video" 
-      ? "tara/contributions/videos" 
-      : "tara/contributions/images";
-
-    const result = await uploadBuffer(parsedFile.buffer, {
-      folder: folderPath,
-      resource_type: resourceType,
-      public_id: publicId,
-    });
-
+    console.log(`[Upload] Success: ${filename || 'unnamed'} -> ${result.secure_url}`);
     return res.json({ url: result.secure_url, info: result });
   } catch (err) {
+    const statusCode = err?.http_code || err?.status || 500;
+    const cloudinaryMessage = err?.error?.message || err?.message || "Unknown error";
     console.error("Cloudinary upload failed:", {
       message: err?.message,
       statusCode: err?.status,
       errorCode: err?.error?.error_code,
+      stack: err?.stack,
     });
-    return res.status(500).json({
+    return res.status(statusCode).json({
       message: "Upload failed",
-      error: err?.message || "Unknown error",
+      error: cloudinaryMessage,
     });
+  } finally {
+    if (req.file?.path) {
+      unlink(req.file.path).catch(() => {});
+    }
   }
 }

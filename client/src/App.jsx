@@ -12,6 +12,7 @@ import BirthdayIntro from "./components/BirthdayIntro";
 import RotateDeviceScreen from "./components/RotateDeviceScreen";
 import CodeIntro from "./components/CodeIntro";
 import { useSiteContent } from "./hooks/useSiteContent";
+import { useQueryClient } from "@tanstack/react-query";
 
 const ACCESS_MODE_STORAGE_KEY = "birthday_site_access_mode";
 const GUEST_CONTENT_STORAGE_KEY = "birthday_site_guest_content";
@@ -72,6 +73,7 @@ function serializeGalleryItem(item = {}) {
 }
 
 function App() {
+  const queryClient = useQueryClient();
   const [accessMode, setAccessMode] = useState(() => {
     if (isReloadNavigation) {
       localStorage.removeItem(ACCESS_MODE_STORAGE_KEY);
@@ -158,6 +160,7 @@ function App() {
         return nextContent;
       });
     });
+
   }, [content]);
 
   const persistAccessMode = (mode) => {
@@ -214,6 +217,24 @@ function App() {
       localStorage.setItem(GUEST_CONTENT_STORAGE_KEY, JSON.stringify(nextContent));
       return nextContent;
     });
+
+    if (accessMode === "full") {
+      queryClient.setQueryData(["site-content"], (current) => {
+        if (!current) return current;
+
+        const nextContent = { ...current };
+
+        if (item.type === "message" && item.note) {
+          nextContent.notes = [item.note, ...(current.notes || [])];
+        }
+
+        if (item.type === "image" && item.galleryItem) {
+          nextContent.gallery = [item.galleryItem, ...(current.gallery || [])];
+        }
+
+        return nextContent;
+      });
+    }
 
     if (accessMode === "guest") {
       setGuestProgress((current) => {

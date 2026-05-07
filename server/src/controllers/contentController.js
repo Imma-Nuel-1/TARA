@@ -99,10 +99,24 @@ export async function getPublicContent(req, res) {
     .filter((item) => item.type === "image")
     .map((item) => {
       const data = item.data || {};
+      const mediaUrl = String(data.url || "");
+      const looksLikeVideo =
+        mediaUrl.includes("/video/upload/") ||
+        /(\.mp4|\.mov|\.webm|\.m4v|\.mkv)(\?|$)/i.test(mediaUrl);
+      const originalFileName =
+        data.originalFileName ||
+        mediaUrl.split("/").pop()?.split("?")[0] ||
+        "";
       return {
-        imageUrl: data.url || "",
+        imageUrl: mediaUrl,
         caption: data.caption || item.title || "Shared memory",
-        mediaType: data.mediaType || "image",
+        mediaType:
+          data.mediaType === "video" || data.mediaType === "image"
+            ? data.mediaType
+            : looksLikeVideo
+              ? "video"
+              : "image",
+        originalFileName,
       };
     })
     .filter((item) => Boolean(item.imageUrl));

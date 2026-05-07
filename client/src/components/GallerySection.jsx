@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 const isVideoItem = (item = {}) => {
   if (item.mediaType === "video") return true;
   const src = (item.imageUrl || "").toLowerCase();
-  return /(\.mp4|\.mov|\.webm|\.m4v)(\?|$)/.test(src);
+  if (src.includes("/video/upload/")) return true;
+  return /(\.mp4|\.mov|\.webm|\.m4v|\.mkv)(\?|$)/.test(src);
 };
 
 const GallerySection = ({
@@ -27,12 +28,18 @@ const GallerySection = ({
   );
   const hasMore = visibleCount < gallery.length;
 
+  useEffect(() => {
+    setVisibleCount((current) => Math.max(current, gallery.length || 6));
+  }, [gallery.length]);
+
+  const getItemLabel = (item = {}) => {
+    const label = item.originalFileName || item.caption || "Shared memory";
+    return label.replace(/\.[^/.]+$/, "");
+  };
+
   const handleOpenLightbox = (index) => {
     const nextItem = visibleItems[index];
     const music = musicRef?.current;
-
-    // DEBUG: verify music ref and item type
-    console.debug('[Gallery] open', { index, nextItem, isVideo: isVideoItem(nextItem), musicDefined: Boolean(music), musicPaused: music ? music.paused : null });
 
     if (music && isVideoItem(nextItem)) {
       musicWasPlayingRef.current = !music.paused;
@@ -47,8 +54,6 @@ const GallerySection = ({
 
   const handleCloseLightbox = () => {
     const music = musicRef?.current;
-
-    console.debug('[Gallery] close', { pausedByVideo: pausedByVideoRef.current, wasPlaying: musicWasPlayingRef.current, musicDefined: Boolean(music) });
 
     if (music && pausedByVideoRef.current) {
       if (musicWasPlayingRef.current) {
@@ -217,6 +222,11 @@ const GallerySection = ({
               )}
               <div className="gallery-overlay">
                 <p>{item.caption}</p>
+                {item.originalFileName && (
+                  <span style={{ display: "block", fontSize: 11, opacity: 0.8, marginTop: 4 }}>
+                    {item.originalFileName}
+                  </span>
+                )}
               </div>
             </div>
           ))}
@@ -292,6 +302,11 @@ const GallerySection = ({
                 </button>
                 <div className="lightbox-caption">
                   {visibleItems[lightboxIndex]?.caption}
+                  {visibleItems[lightboxIndex]?.originalFileName && (
+                    <div style={{ fontSize: 12, opacity: 0.8, marginTop: 6 }}>
+                      {getItemLabel(visibleItems[lightboxIndex])}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>,

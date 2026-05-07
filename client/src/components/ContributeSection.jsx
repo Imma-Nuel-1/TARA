@@ -12,9 +12,14 @@ const RELATIONSHIP_OPTIONS = [
   "Other",
 ];
 
-function detectMediaTypeFromData(dataUrl) {
-  if (!dataUrl) return "image";
-  return dataUrl.startsWith("data:video/") ? "video" : "image";
+function detectMediaTypeFromData(dataUrl, fileName = "") {
+  const src = String(dataUrl || "").toLowerCase();
+  const name = String(fileName || "").toLowerCase();
+  if (src.startsWith("data:video/")) return "video";
+  if (name.endsWith(".mkv") || name.endsWith(".mp4") || name.endsWith(".mov") || name.endsWith(".webm") || name.endsWith(".m4v")) {
+    return "video";
+  }
+  return "image";
 }
 
 const ContributeSection = ({ onContributionSaved }) => {
@@ -25,8 +30,9 @@ const ContributeSection = ({ onContributionSaved }) => {
     message: "",
     caption: "",
     avatarFileData: null,
+    avatarFileObj: null,
     avatarFileName: "",
-    mediaFiles: [], // { fileData, fileName, mediaType }
+    mediaFiles: [], // { fileData, fileName, mediaType, fileObj }
   });
   const [recordedVideo, setRecordedVideo] = useState(null); // { fileData, fileName, mediaType }
 
@@ -80,7 +86,7 @@ const ContributeSection = ({ onContributionSaved }) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      setForm((p) => ({ ...p, avatarFileData: reader.result, avatarFileName: file.name }));
+      setForm((p) => ({ ...p, avatarFileData: reader.result, avatarFileObj: file, avatarFileName: file.name }));
       setErrors((prev) => ({ ...prev, avatar: false }));
     };
     reader.readAsDataURL(file);
@@ -94,7 +100,7 @@ const ContributeSection = ({ onContributionSaved }) => {
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
-        toAdd.push({ fileData: reader.result, fileName: file.name, mediaType: detectMediaTypeFromData(reader.result), recorded: false });
+        toAdd.push({ fileData: reader.result, fileName: file.name, mediaType: detectMediaTypeFromData(reader.result, file.name), fileObj: file, recorded: false });
         done++;
         if (done === files.length) {
           setForm((p) => ({ ...p, mediaFiles: [...p.mediaFiles, ...toAdd] }));
@@ -198,7 +204,7 @@ const ContributeSection = ({ onContributionSaved }) => {
             // ignore playback errors in preview mode
           }
 
-          setRecordedVideo({ fileData: reader.result, fileName: `wish-${Date.now()}.webm`, mediaType: 'video' });
+          setRecordedVideo({ fileData: reader.result, fileName: `wish-${Date.now()}.webm`, mediaType: 'video', fileObj: blob });
           setErrors((prev) => ({ ...prev, content: false }));
           setStatus('');
         };
@@ -245,14 +251,28 @@ const ContributeSection = ({ onContributionSaved }) => {
     }
   };
 
-  const uploadFile = async (fileData, fileName) => {
-    const res = await fetch(`${API_BASE}/api/media/upload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: fileData, filename: fileName }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Upload failed');
+  const uploadFile = async (fileData, fileName, fileObj) => {
+    let res;
+    // Send file objects to the server so it can stream/chunk large uploads to Cloudinary.
+    if (fileObj) {
+      const formData = new FormData();
+      formData.append('file', fileObj, fileName);
+      formData.append('filename', fileName);
+      res = await fetch(`${API_BASE}/api/media/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      res = await fetch(`${API_BASE}/api/media/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: fileData, filename: fileName }),
+      });
+    }
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || json.message || `Upload failed (${res.status})`);
+    }
     return json.url;
   };
 
@@ -272,15 +292,15 @@ const ContributeSection = ({ onContributionSaved }) => {
       setStatus('Uploading media...');
 
       const avatarUploadPromise = form.avatarFileData
-        ? uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`)
+        ? uploadFile(form.avatarFileData, form.avatarFileName || `avatar-${Date.now()}`, form.avatarFileObj)
         : Promise.resolve('');
 
       const recordedVideoUploadPromise = recordedVideo
-        ? uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`)
+        ? uploadFile(recordedVideo.fileData, recordedVideo.fileName || `video-${Date.now()}.webm`, recordedVideo.fileObj)
         : Promise.resolve('');
 
       const mediaUploadPromises = form.mediaFiles.map(async (mf) => ({
-        url: await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`),
+        url: await uploadFile(mf.fileData, mf.fileName || `media-${Date.now()}`, mf.fileObj),
         caption: form.caption,
         mediaType: mf.mediaType || detectMediaTypeFromData(mf.fileData),
       }));
@@ -341,7 +361,7 @@ const ContributeSection = ({ onContributionSaved }) => {
           body: JSON.stringify({
             type: m.mediaType === 'video' ? 'image' : 'image',
             title: `Memory from ${form.name}`,
-            data: { url: m.url, caption: m.caption, mediaType: m.mediaType },
+            data: { url: m.url, caption: m.caption, mediaType: m.mediaType, originalFileName: m.fileName },
             createdBy: form.name,
           }),
         });
@@ -351,7 +371,7 @@ const ContributeSection = ({ onContributionSaved }) => {
       }
 
       setStatus('Successfully shared. Thank you!');
-      setForm({ name: '', role: 'Friend', otherRole: '', message: '', caption: '', avatarFileData: null, avatarFileName: '', mediaFiles: [] });
+      setForm({ name: '', role: 'Friend', otherRole: '', message: '', caption: '', avatarFileData: null, avatarFileObj: null, avatarFileName: '', mediaFiles: [] });
       setRecordedVideo(null);
       setErrors({});
       if (avatarInputRef.current) avatarInputRef.current.value = '';
