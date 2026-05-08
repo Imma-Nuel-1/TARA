@@ -184,18 +184,102 @@ function App() {
       throw new Error("Music player is not available.");
     }
 
-    audio.loop = true;
+    const targetVolume =
+      typeof audio.volume === "number" && Number.isFinite(audio.volume)
+        ? audio.volume
+        : 1;
+
+    const fadeTo = async (nextVolume, durationMs = 260, steps = 10) => {
+      const startVolume =
+        typeof audio.volume === "number" && Number.isFinite(audio.volume)
+          ? audio.volume
+          : 1;
+
+      if (durationMs <= 0 || steps <= 0) {
+        audio.volume = Math.max(0, Math.min(1, nextVolume));
+        return;
+      }
+
+      const delta = (nextVolume - startVolume) / steps;
+      const stepDuration = Math.max(1, Math.floor(durationMs / steps));
+
+      for (let step = 1; step <= steps; step += 1) {
+        audio.volume = Math.max(0, Math.min(1, startVolume + delta * step));
+        // small stepped ramp is more reliable than relying on CSS/audio APIs for fades
+        await new Promise((resolve) => setTimeout(resolve, stepDuration));
+      }
+    };
+
+    // Play the new public track first
+    try {
+      audio.pause();
+    } catch {}
+
+    if (audio.__lukiestTimeHandler) {
+      audio.removeEventListener("timeupdate", audio.__lukiestTimeHandler);
+      audio.__lukiestTimeHandler = null;
+    }
+
+    audio.src = "/music/the-lukiest.mp3";
     audio.preload = "auto";
-    audio.currentTime = 10;
+
+    // Play from 10s, then hand off to the default looping track at 2:06.
+    audio.loop = false;
+
+    const seekStart = 10;
+    const loopEnd = 126;
+    let handling = false;
+
+    const onTimeUpdate = async () => {
+      if (handling) return;
+      try {
+        if (audio.currentTime >= loopEnd - 0.15) {
+          handling = true;
+          audio.removeEventListener("timeupdate", onTimeUpdate);
+          audio.__lukiestTimeHandler = null;
+
+          try {
+            await fadeTo(0);
+            audio.pause();
+          } catch {}
+
+          audio.src = "/music/track.mp3";
+          audio.preload = "auto";
+          audio.loop = true;
+          audio.volume = 0;
+          audio.currentTime = 10;
+
+          try {
+            await audio.play();
+            await fadeTo(targetVolume);
+          } catch (err) {
+            if (err.name !== "AbortError") {
+              console.warn("Music playback warning:", err.message || err);
+            }
+            audio.volume = targetVolume;
+          }
+
+          handling = false;
+        }
+      } catch (e) {
+        audio.volume = targetVolume;
+        handling = false;
+      }
+    };
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.__lukiestTimeHandler = onTimeUpdate;
+
+    audio.volume = targetVolume;
+    audio.currentTime = seekStart;
 
     try {
       await audio.play();
     } catch (err) {
-      // AbortError can occur when interrupting or changing sources
-      // This is not a critical error, just log and continue
-      if (err.name !== 'AbortError') {
-        console.warn('Music playback warning:', err.message);
+      if (err.name !== "AbortError") {
+        console.warn("Music playback warning:", err.message || err);
       }
+      // Let caller proceed even if playback blocked
     }
   };
 
