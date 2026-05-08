@@ -7,7 +7,7 @@ const LEGACY_BASE = "http://localhost:5000/legacy";
 const CODED_LOVE_LETTER = {
   heading: "Hi my love 💕",
   paragraphs: [
-    "It's your day today, and I just want to talk to you properly, not in any rushed or half way way.",
+    "It's your day today, and I just want to talk to you properly, not in any rushed or half way.",
     "First of all, happy birthday Halimah 💕 22 looks good on you already, and I hope you actually pause today and take in what this year means for you, Ajoke. I know I'm older, so I'll do a little bit of \"older person talk\" 😌",
     "22 is a beautiful age, but it is also a serious one. It is that stage where life starts to feel a bit more intentional. Things begin to matter more, decisions start shaping your direction, and you start seeing yourself more clearly. But honestly, I don't worry about you, Tara. You've always had something about you... focus, depth, and that quiet strength you carry even when you don't say much.",
     "And I trust you. I trust God over your life as well, Halimah. So I already know this year will not just be good for you, it will be meaningful for you.",
